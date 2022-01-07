@@ -23,7 +23,7 @@ if(DEVICE STREQUAL "fpga")
     anydsl_runtime_wrap(FPGA_COPY_PROGRAM
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
-        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../utils.impala fpga_copy.impala
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala fpga_copy.impala
         HLS_FLAGS ${HLS_FLAGS})
     add_executable(fpga_copy ${FPGA_COPY_PROGRAM})
     target_link_libraries(fpga_copy ${ANYDSL_RUNTIME_LIBRARIES})
@@ -32,7 +32,7 @@ if(DEVICE STREQUAL "fpga")
     anydsl_runtime_wrap(LOOP_PIPELINE_PROGRAM
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
-        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../utils.impala loop_pipeline.impala
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala loop_pipeline.impala
         HLS_FLAGS ${HLS_FLAGS})
     add_executable(loop_pipeline ${LOOP_PIPELINE_PROGRAM})
     target_link_libraries(loop_pipeline ${ANYDSL_RUNTIME_LIBRARIES})
@@ -41,7 +41,7 @@ if(DEVICE STREQUAL "fpga")
     anydsl_runtime_wrap(LP_NESTED_PROGRAM
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
-        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../utils.impala lp_nested.impala
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala lp_nested.impala
         HLS_FLAGS ${HLS_FLAGS})
     add_executable(lp_nested ${LP_NESTED_PROGRAM})
     target_link_libraries(lp_nested ${ANYDSL_RUNTIME_LIBRARIES})
@@ -52,7 +52,7 @@ if(DEVICE STREQUAL "acc")
     anydsl_runtime_wrap(MULTI_GPU_PROGRAM
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
-        FILES ${BACKEND_FILE} ${PIXEL_F32_FILE} ../utils.impala multi_gpu.impala)
+        FILES ${BACKEND_FILE} ${PIXEL_F32_FILE} ../src/utils.impala multi_gpu.impala)
     add_executable(multi_gpu ${MULTI_GPU_PROGRAM})
     target_link_libraries(multi_gpu ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("multi_gpu" multi_gpu)
