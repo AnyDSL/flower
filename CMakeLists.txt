@@ -109,24 +109,7 @@ set(HLS_FLAGS ${SOC} ${SYNTHESIS} ${FPGA_PART} ${PROFILER} ${HW_EMULATION} ${GME
 set(STINCILLA_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/common/pnm_image)
 include_directories(${STINCILLA_COMMON_INCLUDE_DIRS})
 
-#add_subdirectory(aobench)
-#add_subdirectory(bilateral_grid)
-#add_subdirectory(halide)
 add_subdirectory(test)
-#add_subdirectory(image_sharpening)
-#add_subdirectory(sorting_networks)
-#add_subdirectory(vcycle)
 add_subdirectory(apps)
-#add_subdirectory(harris_corner)
 
 set(DSL_TYPE_FILES utils.impala stencil_lib.impala stencil_lib_img_proc.impala)
-
-#simple CPU-based examples
-anydsl_runtime_wrap(MATMUL_PROGRAM
-    CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
-    HLS_FLAGS ${HLS_FLAGS}
-    FILES ${BACKEND_FILE} utils.impala matmul.impala ${PIXEL_F32_FILE} mat_lib.impala )
-add_executable(matmul ${MATMUL_PROGRAM})
-target_link_libraries(matmul ${ANYDSL_RUNTIME_LIBRARIES})
-add_test("matmul" matmul)
