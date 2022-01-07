@@ -45,7 +45,7 @@ if(BACKEND STREQUAL "hls")
     endif()
     message(STATUS "Application configurations: ${ANYDSL_FPGA}")
 
-    set(SOC ON CACHE BOOL "ON: SoC IP generation, OFF: IP generation / HPC accelerator integration")
+    set(SOC OFF CACHE BOOL "ON: SoC IP generation, OFF: IP generation / HPC accelerator integration")
     string(TOLOWER "${SOC}" SOC)
     message(STATUS "SoC integration: ${SOC}")
 
