@@ -22,3 +22,9 @@ cd anydsl/flower_anydsl/build
 cmake -DBACKEND=aocl .. # optional: switch to multi-platform (Intel/Xilinx) OpenCL backend.
 make
 ```
+
+To generate vectorized version of applications, edit `src/backend_hls.impala` and modify the value of `vector_length`, then before generating a new application rebuild the cache:
+```bash
+cd anydsl/flower_anydsl/build
+make rebuild_cache
+```
