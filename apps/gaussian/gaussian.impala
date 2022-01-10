@@ -54,7 +54,7 @@ fn main() -> i32 {
 
         let offset  = enable_offset * (mask.size_x / 2);
         let prop    = get_RoI(offset, offset, width - 2 * offset, height - 2 * offset);
-        check(arr_acc, out_acc, ref_acc, prop) 
+        check(arr_acc, out_acc, ref_acc, prop)
     }
     let result = reference();
     release(arr.buf);
