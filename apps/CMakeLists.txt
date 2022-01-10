@@ -49,7 +49,6 @@ set (BILATERAL_DIR        ${APPS_DIR}/bilateral)
 set (BILATERAL_BURST_DIR  ${APPS_DIR}/bilateral_burst)
 set (SQUARE_DIR           ${APPS_DIR}/square)
 set (SQUARE_BURST_DIR     ${APPS_DIR}/square_burst)
-set (MAXIMUM_DIR          ${APPS_DIR}/reduce_ex)
 set (BOX_FILTER_DIR       ${APPS_DIR}/box_filter)
 set (BOX_FILTER_BURST_DIR ${APPS_DIR}/box_filter_burst)
 set (LAPLACE_DIR          ${APPS_DIR}/laplace)
@@ -63,7 +62,6 @@ set(BILATERAL_FILES        ${BILATERAL_DIR}/mask_f32.impala ${BILATERAL_DIR}/bil
 set(BILATERAL_BURST_FILES  ${BILATERAL_BURST_DIR}/mask_f32.impala ${BILATERAL_BURST_DIR}/bilateral_burst.impala)
 set(SQUARE_FILES           ${SQUARE_DIR}/square.impala)
 set(SQUARE_BURST_FILES     ${SQUARE_BURST_DIR}/square_burst.impala)
-set(MAXIMUM_FILES          ${MAXIMUM_DIR}/reduce_ex.impala)
 set(BOX_FILTER_FILES       ${BOX_FILTER_DIR}/mask.impala ${BOX_FILTER_DIR}/box_filter.impala)
 set(BOX_FILTER_BURST_FILES ${BOX_FILTER_BURST_DIR}/mask.impala ${BOX_FILTER_BURST_DIR}/box_filter_burst.impala)
 set(LAPLACE_FILES          ${LAPLACE_DIR}/mask.impala ${LAPLACE_DIR}/laplace.impala)
@@ -248,15 +246,6 @@ anydsl_runtime_wrap(SQUARE_BURST_PROGRAM
 add_executable(square_burst ${SQUARE_BURST_PROGRAM})
 target_link_libraries(square_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_burst" square_burst)
-
-anydsl_runtime_wrap(MAXIMUM_PROGRAM
-    CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
-    HLS_FLAGS ${HLS_FLAGS}
-    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${MAXIMUM_FILES})
-add_executable(reduce_ex ${MAXIMUM_PROGRAM})
-target_link_libraries(reduce_ex ${ANYDSL_RUNTIME_LIBRARIES})
-add_test("reduce_ex" reduce_ex)
 
 anydsl_runtime_wrap(FILTER_CHAIN_PROGRAM
     CLANG_FLAGS ${CLANG_FLAGS}
