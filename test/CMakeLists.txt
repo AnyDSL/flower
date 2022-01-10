@@ -6,7 +6,7 @@ add_test("jit" jit)
 anydsl_runtime_wrap(STENCIL_INT_PROGRAM
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
-    FILES ${PIXEL_F32_FILE} stencil_dsl.impala)
+    FILES stencil_dsl.impala)
 add_executable(stencil_dsl ${STENCIL_INT_PROGRAM})
 target_link_libraries(stencil_dsl ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("stencil_dsl" stencil_dsl)
