@@ -55,7 +55,7 @@ set (LAPLACE_DIR          ${APPS_DIR}/laplace)
 set (LAPLACE_BURST_DIR    ${APPS_DIR}/laplace_burst)
 set (FILTER_CHAIN_DIR     ${APPS_DIR}/filter_chain)
 set (FILTER_CHAIN_BURST_DIR ${APPS_DIR}/filter_chain_burst)
-set (HARRIS_CORNER_DIR    ${APPS_DIR}/harris_corner)
+set (HARRIS_CORNER_BURST_DIR    ${APPS_DIR}/harris_corner_burst)
 set (SHI_THOMASI_DIR      ${APPS_DIR}/shi_thomasi)
 
 set(BILATERAL_FILES        ${BILATERAL_DIR}/mask_f32.impala ${BILATERAL_DIR}/bilateral.impala)
@@ -79,7 +79,7 @@ set(JACOBI_FILES           ${JACOBI_DIR}/mask_${PIXEL_TYPE}.impala ${JACOBI_DIR}
 set(JACOBI_BURST_FILES     ${JACOBI_BURST_DIR}/mask_${PIXEL_TYPE}.impala ${JACOBI_BURST_DIR}/jacobi_burst.impala)
 set(FILTER_CHAIN_FILES     ${FILTER_CHAIN_DIR}/mask_${PIXEL_TYPE}.impala ${FILTER_CHAIN_DIR}/filter_chain.impala)
 set(FILTER_CHAIN_BURST_FILES     ${FILTER_CHAIN_BURST_DIR}/mask_${PIXEL_TYPE}.impala ${FILTER_CHAIN_BURST_DIR}/filter_chain_burst.impala)
-set(HARRIS_CORNER_FILES    ${HARRIS_CORNER_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_DIR}/harris_corner.impala)
+set(HARRIS_CORNER_BURST_FILES    ${HARRIS_CORNER_BURST_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_BURST_DIR}/harris_corner_burst.impala)
 set(SHI_THOMASI_FILES      ${SHI_THOMASI_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_DIR}/shi_thomasi.impala)
 
 # for optional config files
@@ -277,12 +277,12 @@ target_link_libraries(shi_thomasi ${ANYDSL_RUNTIME_LIBRARIES})
 set_target_properties(shi_thomasi PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
 set_target_properties(shi_thomasi PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
-anydsl_runtime_wrap(HARRIS_CORNER_PIPE_PROGRAM
+anydsl_runtime_wrap(HARRIS_CORNER_BURST_PROGRAM
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
-    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_FILES})
-add_executable(harris_corner_pipe "${HARRIS_CORNER_DIR}/main.cpp" ${HARRIS_CORNER_PIPE_PROGRAM})
-target_link_libraries(harris_corner_pipe ${ANYDSL_RUNTIME_LIBRARIES})
-set_target_properties(harris_corner_pipe PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
-set_target_properties(harris_corner_pipe PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_BURST_FILES})
+add_executable(harris_corner_burst "${HARRIS_CORNER_BURST_DIR}/main.cpp" ${HARRIS_CORNER_BURST_PROGRAM})
+target_link_libraries(harris_corner_burst ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(harris_corner_burst PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+set_target_properties(harris_corner_burst PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
