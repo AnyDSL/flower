@@ -108,7 +108,7 @@ fn harris_corner(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
             let harris_acc = get_acc(harris, |idx, val| { bitcast[&mut[pixel_t]](harris.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](harris.buf.data)(idx));
             if harris_acc.read(x, y) > threshold {
                 out_data(y*width + x) = markHigh;
-            } else{
+            } else {
                 out_data(y*width + x) = markLow;
             }
             //out_data(y*width + x) = harris_acc.read(x, y);
