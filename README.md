@@ -2,6 +2,8 @@
 
 This repository contains the applications implementated for paper "FLOWER: A Comprehensive Dataflow Compiler for High-Level Synthesis".
 
+It is based on a fork of [Stincilla](https://github.com/AnyDSL/stincilla).
+
 ## Prerequisites ##
 FLOWER requires a working AnyDSL installation. A script to build the [impala](https://github.com/AnyDSL/impala) frontend and [thorin](https://github.com/AnyDSL/thorin) backend as well as the [runtime](https://github.com/AnyDSL/runtime) component is provided by the [anydsl metaproject](https://github.com/AnyDSL/anydsl) (setup.sh).
 
