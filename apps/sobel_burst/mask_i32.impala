@@ -1,7 +1,7 @@
-static sobel_maskx = [[ -1, -2, -1],
-                      [  0,  0,  0],
-                      [  1,  2,  1]];
+static sobel_maskx = [[ -1 as pixel_t, -2 as pixel_t, -1 as pixel_t],
+                      [  0 as pixel_t,  0 as pixel_t,  0 as pixel_t],
+                      [  1 as pixel_t,  2 as pixel_t,  1 as pixel_t]];
 
-static sobel_masky = [[ -1,  0,  1],
-                      [ -2,  0,  2],
-                      [ -1,  0,  1]];
+static sobel_masky = [[ -1 as pixel_t,  0 as pixel_t,  1 as pixel_t],
+                      [ -2 as pixel_t,  0 as pixel_t,  2 as pixel_t],
+                      [ -1 as pixel_t,  0 as pixel_t,  1 as pixel_t]];
