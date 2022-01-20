@@ -82,10 +82,16 @@ set(PIXEL_I32_FILE  ${CMAKE_CURRENT_SOURCE_DIR}/src/pixel_i32.impala)
 set(PIXEL_F32_FILE  ${CMAKE_CURRENT_SOURCE_DIR}/src/pixel_f32.impala)
 set(CONFIG_FILES    ${BACKEND_FILE} ${PIXEL_TYPE_FILE})
 
+set(CLANG_FLAGS -march=native)
+set(IMPALA_FLAGS --log-level info)
+set(ANYDSL_RUNTIME_LIBRARIES ${AnyDSL_runtime_LIBRARIES})
+set(HLS_FLAGS ${SOC} ${SYNTHESIS} ${FPGA_PART} ${PROFILER} ${HW_EMULATION} ${GMEM_BANKS_OPT})
+
 if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
     set(DEVICE "cpu")
     set(MAPPING_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/mapping_${DEVICE}.impala)
 elseif(BACKEND STREQUAL "aocl" OR BACKEND STREQUAL "hls")
+    set(IMPALA_FLAGS --log-level info --hls-flags ${ANYDSL_FPGA})
     set(DEVICE "fpga")
     if(NOT ANYDSL_FPGA)
         set(ANYDSL_FPGA "HPC" CACHE STRING "")
@@ -100,10 +106,6 @@ else()
     set(MAPPING_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/mapping_${DEVICE}.impala)
 endif()
 
-set(CLANG_FLAGS -march=native)
-set(IMPALA_FLAGS --log-level info --hls-flags ${ANYDSL_FPGA})
-set(ANYDSL_RUNTIME_LIBRARIES ${AnyDSL_runtime_LIBRARIES})
-set(HLS_FLAGS ${SOC} ${SYNTHESIS} ${FPGA_PART} ${PROFILER} ${HW_EMULATION} ${GMEM_BANKS_OPT})
 
 
 set(STINCILLA_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src/common/pnm_image)
