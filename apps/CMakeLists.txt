@@ -2,7 +2,7 @@ set(DSL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 set(APPS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 # mapping
-if(BACKEND STREQUAL "aocl" OR BACKEND STREQUAL "hls")
+if(BACKEND STREQUAL "opencl" AND PARALLEL STREQUAL "task" OR BACKEND STREQUAL "hls")
     set(DEVICE "fpga")
     set(DEVICE_SPECIFIC_FILES ${DSL_SOURCE_DIR}/mapping_fpga_img_${BACKEND}.impala ${DSL_SOURCE_DIR}/stencil_lib_img_fpga.impala)
     set(CHANNEL_LIB_DIR ${DSL_SOURCE_DIR}/channel_lib CACHE INTERNAL "channel library directory")
@@ -16,6 +16,7 @@ else()
     if(BACKEND STREQUAL "cpu" OR BACKEND STREQUAL "avx")
         set(DEVICE "cpu")
     else()
+    # data-parallel OpenCL and Cuda
         set(DEVICE "acc")
     endif()
     set(DEVICE_SPECIFIC_FILES ${DSL_SOURCE_DIR}/stencil_lib_img_proc.impala)
