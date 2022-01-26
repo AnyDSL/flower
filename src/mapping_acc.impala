@@ -136,6 +136,51 @@ fn @iteration_point3(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img
     release(arr2_gpu.buf);
 }
 
+fn @iteration_point5(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, arr3: Img, arr4: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t, pixel_t, pixel_t) -> ()) -> () {
+    let acc = accelerator(device_id);
+    let out_gpu = alloc_img(out, acc.alloc);
+    let arr0_gpu = get_device_copy(arr0);
+    let arr1_gpu = get_device_copy(arr1);
+    let arr2_gpu = get_device_copy(arr2);
+    let arr3_gpu = get_device_copy(arr3);
+    let arr4_gpu = get_device_copy(arr4);
+
+    let coarsening_factor = 1;
+    let grid   = (out.width, out.height / coarsening_factor, 1);
+    let block  = (128, 1, 1);
+
+    for benchmark_acc(acc) {
+        for work_item in acc.exec(grid, block) {
+            let bdim_y = work_item.bdimy();
+            let gid_x  = work_item.tidx() + work_item.bdimx() * work_item.bidx();
+            let gid_y  = work_item.tidy() + work_item.bdimy() * work_item.bidy() * coarsening_factor;
+            let out_acc = get_acc(out_gpu, set_pixel_fn(out_gpu), get_pixel_fn(out_gpu));
+            let arr0_acc = get_acc(arr0_gpu, set_pixel_fn(arr0_gpu), get_pixel_fn(arr0_gpu));
+            let arr1_acc = get_acc(arr1_gpu, set_pixel_fn(arr1_gpu), get_pixel_fn(arr1_gpu));
+            let arr2_acc = get_acc(arr2_gpu, set_pixel_fn(arr2_gpu), get_pixel_fn(arr2_gpu));
+            let arr3_acc = get_acc(arr3_gpu, set_pixel_fn(arr3_gpu), get_pixel_fn(arr3_gpu));
+            let arr4_acc = get_acc(arr4_gpu, set_pixel_fn(arr4_gpu), get_pixel_fn(arr4_gpu));
+
+            for i in unroll(0, coarsening_factor) {
+                let arr0_pix = arr0_acc.read(gid_x, gid_y + i * bdim_y);
+                let arr1_pix = arr1_acc.read(gid_x, gid_y + i * bdim_y);
+                let arr2_pix = arr2_acc.read(gid_x, gid_y + i * bdim_y);
+                let arr3_pix = arr3_acc.read(gid_x, gid_y + i * bdim_y);
+                let arr4_pix = arr4_acc.read(gid_x, gid_y + i * bdim_y);
+                @@body(math, gid_x, gid_y + i * bdim_y, out_acc, arr0_pix, arr1_pix, arr2_pix, arr3_pix, arr4_pix);
+            }
+        }
+    }
+
+    copy_img(out_gpu, out);
+    release(out_gpu.buf);
+    release(arr0_gpu.buf);
+    release(arr1_gpu.buf);
+    release(arr2_gpu.buf);
+    release(arr3_gpu.buf);
+    release(arr4_gpu.buf);
+}
+
 fn @iteration(math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> () {
     let acc = accelerator(device_id);
     let arr_gpu = alloc_img(arr, acc.alloc);
