@@ -19,6 +19,11 @@ fn @split_image(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe) ->
     (arr, arr)
 }
 
+
+fn @split_image3(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe) -> (Img, Img, Img) {
+    (arr, arr, arr)
+}
+
 // ---------------------------------------------------------------------------
 // Everything related with Img in stencil_lib
 // ---------------------------------------------------------------------------
