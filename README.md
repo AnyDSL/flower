@@ -23,7 +23,7 @@ The setup.sh configures Flower and sets all required paths. The backend for code
 Example:
 ```bash
 cd anydsl/flower_anydsl/build
-cmake -DBACKEND=aocl .. # optional: switch to multi-platform (Intel/Xilinx) OpenCL backend.
+cmake -DBACKEND=opencl .. # optional: switch to multi-platform (Intel/Xilinx) OpenCL backend.
 make
 ```
 
