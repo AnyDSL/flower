@@ -3,7 +3,6 @@ static nvvm_ldg = nvvm_ldg_u8;
 static cuda_ldg = cuda_ldg_u8;
 fn @is_same_pixel(a: u8, b: u8 ) -> bool { a == b }
 fn @print_pixel(pixel: u8) -> () { print_i32(pixel as i32) }
-fn @absolute(a: u8) -> u8 {abs(a)}
 
 fn @read_channel1  (c: &mut channel1_u8)   -> [pixel_t * 1  ] { read_channel1_u8(c)   }
 fn @read_channel2  (c: &mut channel2_u8)   -> [pixel_t * 2  ] { read_channel2_u8(c)   }
