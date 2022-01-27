@@ -86,7 +86,7 @@ fn main() -> i32 {
     fn @get_scharr_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
         Mask {
             data : @|x, y| -> pixel_t { data(y)(x) },
-            sum  : 1, size_x : 3, size_y : 3
+            sum  : 1 as pixel_t, size_x : 3, size_y : 3
         }
     }
 
