@@ -7,7 +7,7 @@ It is based on a fork of [Stincilla](https://github.com/AnyDSL/stincilla).
 ## Prerequisites ##
 FLOWER requires a working AnyDSL installation. A script to build the [impala](https://github.com/AnyDSL/impala) frontend and [thorin](https://github.com/AnyDSL/thorin) backend as well as the [runtime](https://github.com/AnyDSL/runtime) component is provided by the [anydsl metaproject](https://github.com/AnyDSL/anydsl) (setup.sh).
 
-Also Xilinx Vitis 2020.1 and Intel FPGA SDK for OpenCL 19.4 needs to be separatly installed.
+For Xilinx FPGAs *Vitis 2021.2.1* and for Intel FPGAs *Intel FPGA SDK for OpenCL 19.4* needs to be separatly installed.
 
 ## Building ##
 The setup.sh configures Flower and sets all required paths. The backend for code generation will be set to `cpu`. This can be changed via CMake:
