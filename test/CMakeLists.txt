@@ -1,5 +1,6 @@
 if(DEVICE STREQUAL "fpga")
     anydsl_runtime_wrap(TEST_FPGA_COPY
+        FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
         FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fpga_copy.impala
@@ -9,6 +10,7 @@ if(DEVICE STREQUAL "fpga")
     add_test("fpga_copy" test_fpga_copy)
 
     anydsl_runtime_wrap(TEST_DATA_FLOW
+        FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
         FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_dataflow.impala
@@ -18,6 +20,7 @@ if(DEVICE STREQUAL "fpga")
     add_test("dataflow" test_dataflow)
 
     anydsl_runtime_wrap(TEST_LOOP_PIPELINE
+        FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
         FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_loop_pipeline.impala
@@ -27,6 +30,7 @@ if(DEVICE STREQUAL "fpga")
     add_test("loop_pipeline" test_loop_pipeline)
 
     anydsl_runtime_wrap(TEST_LP_NESTED
+        FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}
         IMPALA_FLAGS ${IMPALA_FLAGS}
         FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_lp_nested.impala
