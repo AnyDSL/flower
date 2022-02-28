@@ -93,6 +93,7 @@ if (${BACKEND} STREQUAL "hls")
 endif()
 
 anydsl_runtime_wrap(BILATERAL_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -102,6 +103,7 @@ target_link_libraries(bilateral ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("bilateral" bilateral)
 
 anydsl_runtime_wrap(BILATERAL_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -111,6 +113,7 @@ target_link_libraries(bilateral_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("bilateral_burst" bilateral_burs)
 
 anydsl_runtime_wrap(BOX_FILTER_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -120,6 +123,7 @@ target_link_libraries(box_filter ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("box_filter" box_filter)
 
 anydsl_runtime_wrap(BOX_FILTER_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -129,6 +133,7 @@ target_link_libraries(box_filter_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("box_filter_burst" box_filter_burst)
 
 anydsl_runtime_wrap(LAPLACE_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -138,6 +143,7 @@ target_link_libraries(laplace ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("laplace" laplace)
 
 anydsl_runtime_wrap(LAPLACE_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -147,6 +153,7 @@ target_link_libraries(laplace_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("laplace_burst" laplace_burst)
 
 anydsl_runtime_wrap(GAUSSIAN_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -156,6 +163,7 @@ target_link_libraries(gaussian ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("gaussian" gaussian)
 
 anydsl_runtime_wrap(GAUSSIAN_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -165,6 +173,7 @@ target_link_libraries(gaussian_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("gaussian_burst" gaussian_burst)
 
 anydsl_runtime_wrap(SOBEL_LUMA_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -174,6 +183,7 @@ target_link_libraries(sobel_luma ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("sobel_luma" sobel_luma)
 
 anydsl_runtime_wrap(SOBEL_LUMA_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -183,6 +193,7 @@ target_link_libraries(sobel_luma_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("sobel_luma_burst" sobel_luma_burst)
 
 anydsl_runtime_wrap(SOBEL_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -192,6 +203,7 @@ target_link_libraries(sobel_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("sobel_burst" sobel_burst)
 
 anydsl_runtime_wrap(UNSHARP_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -201,6 +213,7 @@ target_link_libraries(unsharp ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("unsharp" unsharp)
 
 anydsl_runtime_wrap(OPTICAL_FLOW_HS_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
@@ -210,6 +223,7 @@ target_link_libraries(optical_flow_hs ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("optical_flow_hs" optical_flow_hs)
 
 anydsl_runtime_wrap(OPTICAL_FLOW_LK_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
@@ -219,6 +233,7 @@ target_link_libraries(optical_flow_lk ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("optical_flow_lk" optical_flow_lk)
 
 anydsl_runtime_wrap(JACOBI_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -228,6 +243,7 @@ target_link_libraries(jacobi ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("jacobi" jacobi)
 
 anydsl_runtime_wrap(JACOBI_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -237,6 +253,7 @@ target_link_libraries(jacobi_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("jacobi_burst" jacobi_burst)
 
 anydsl_runtime_wrap(SQUARE_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -246,6 +263,7 @@ target_link_libraries(square ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square" square)
 
 anydsl_runtime_wrap(SQUARE_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -255,6 +273,7 @@ target_link_libraries(square_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_burst" square_burst)
 
 anydsl_runtime_wrap(FILTER_CHAIN_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -265,6 +284,7 @@ set_target_properties(filter_chain PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYP
 set_target_properties(filter_chain PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 anydsl_runtime_wrap(FILTER_CHAIN_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -275,6 +295,7 @@ set_target_properties(filter_chain_burst PROPERTIES COMPILE_FLAGS -DSTINCILLA_DA
 set_target_properties(filter_chain_burst PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 anydsl_runtime_wrap(SHI_THOMASI_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
@@ -285,6 +306,7 @@ set_target_properties(shi_thomasi PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE
 set_target_properties(shi_thomasi PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 anydsl_runtime_wrap(HARRIS_CORNER_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
@@ -295,6 +317,7 @@ set_target_properties(harris_corner PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TY
 set_target_properties(harris_corner PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 anydsl_runtime_wrap(HARRIS_CORNER_BURST_PROGRAM
+    FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     IMPALA_FLAGS ${IMPALA_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
