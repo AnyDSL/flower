@@ -5,20 +5,18 @@ struct Mat {
     write : fn(i32, i32, f32) -> (),
 }
 
-fn @get_mat(buf: Buffer, rows: i32, cols: i32) -> Mat {
-    Mat {
-        rows  : @|| rows,
-        cols  : @|| cols,
-        read  : @|x, y| { bitcast[&[f32]](buf.data)(y * cols + x) },
-        write : @|x, y, v| { bitcast[&mut[f32]](buf.data)(y * cols + x) = v },
-    }
-}
+fn @get_mat(buf: Buffer, rows: i32, cols: i32) = Mat {
+    rows  = @|| rows,
+    cols  = @|| cols,
+    read  = @|x, y|    { bitcast[&[f32],  ](buf.data)(y * cols + x) },
+    write = @|x, y, v| { bitcast[&mut[f32]](buf.data)(y * cols + x) = v },
+};
 
 
 fn matmul_golden(C: Mat, A: Mat, B: Mat) -> () {
     for i in range(0, C.rows()) {
         for k in range(0, C.cols()) {
-            let mut sum = 0.0f;
+            let mut sum = 0:f32;
             for j in range(0, A.cols()) {
                 sum += A.read(j, i) * B.read(k, j);
             }
@@ -32,7 +30,7 @@ fn matmul_hand_tiled(C: Mat, A: Mat, B: Mat) -> () {
     // initialize C with zeros
     for y in range(0, C.rows()) {
         for x in range(0, C.cols()) {
-            C.write(x, y, 0.0f);
+            C.write(x, y, 0:f32);
         }
     }
 
@@ -67,7 +65,7 @@ fn matmul_auto_tiled(C: Mat, A: Mat, B: Mat) -> () {
 
         fn @(?cur_lvl) tile(cur_lvl: i32, il: i32, iu: i32, kl: i32, ku: i32, jl: i32, ju: i32) -> () {
             let step = get_step(cur_lvl);
-            pe_info("step size", step);
+            pe_info[i32]("step size", step);
 
             if step == 1 {
                 for i in range(il, min(iu, C.rows())) {
@@ -96,7 +94,7 @@ fn matmul_auto_tiled(C: Mat, A: Mat, B: Mat) -> () {
     // initialize C with zeros
     for y in range(0, C.rows()) {
         for x in range(0, C.cols()) {
-            C.write(x, y, 0.0f);
+            C.write(x, y, 0:f32);
         }
     }
 
