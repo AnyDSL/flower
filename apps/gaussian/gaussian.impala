@@ -23,7 +23,7 @@ fn main() -> i32 {
 
     let iteration_fun = iteration;                  // SS
     for benchmark_host(num_host_iter) {
-        for math, x, y, out_acc, arr_acc, mask in iteration_fun(math, out, arr, mask, lower, upper) {
+        for _math, x, y, out_acc, arr_acc, mask in iteration_fun(math, out, arr, mask, lower, upper) {
             out_acc.write(x, y, kernel(x, y, arr_acc, mask));
         }
     }

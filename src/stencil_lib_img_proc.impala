@@ -4,7 +4,7 @@
 // pipe support
 type pipe = i32;
 
-fn @create_virtual_img(width: i32, height: i32, buf: &mut pipe) -> Img {
+fn @create_virtual_img(width: i32, height: i32, _buf: &mut pipe) -> Img {
     create_img(width, height, alloc_cpu)
 }
 
@@ -15,21 +15,21 @@ fn @create_host_img(width: i32, height: i32) -> Img {
 }
 
 // -------------------------- point operators ----------------------------------
-fn @split_image(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe) -> (Img, Img) {
+fn @split_image(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe) -> (Img, Img) {
     (arr, arr)
 }
 
 
-fn @split_image3(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe, out2: &mut pipe) -> (Img, Img, Img) {
+fn @split_image3(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe) -> (Img, Img, Img) {
     (arr, arr, arr)
 }
 
-fn @split_image5(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe, out2: &mut pipe, out3: &mut pipe, out4: &mut pipe) -> (Img, Img, Img, Img, Img) {
+fn @split_image5(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe) -> (Img, Img, Img, Img, Img) {
     (arr, arr, arr, arr, arr)
 }
 
-fn @split_image6(math: Intrinsics, arr: Img, out0: &mut pipe, out1: &mut pipe, out2: &mut pipe, out3: &mut pipe, out4: &mut pipe,
-out5: &mut pipe) -> (Img, Img, Img, Img, Img, Img) {
+fn @split_image6(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe,
+_out5: &mut pipe) -> (Img, Img, Img, Img, Img, Img) {
     (arr, arr, arr, arr, arr, arr)
 }
 // ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ struct Img {
 }
 
 fn @new_img(width: i32, height: i32, stride: i32, buf: Buffer) -> Img {
-    Img { buf : buf, width : width,  height : height, stride : stride }
+    Img { buf = buf, width = width,  height = height, stride = stride }
 }
 
 fn @alloc_img(img: Img, alloc: fn(i64) -> Buffer) -> Img {
@@ -66,8 +66,8 @@ fn @get_acc_bh(img: Img, set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -
 }
 fn @get_acc_bh_offset(img: Img, set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Acc {
     Acc {
-        read  : @|x, y|    read_pixel(x + rox, y + roy, region, RoI { o_x : 0, o_y : 0, width : img.width, height : img.height }, @|x, y| { get_pixel(y * img.stride + x) }, bh_lower, bh_upper),
-        write : @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
+        read  = @|x, y|    read_pixel(x + rox, y + roy, region, RoI { o_x = 0, o_y = 0, width = img.width, height = img.height }, @|x, y| { get_pixel(y * img.stride + x) }, bh_lower, bh_upper),
+        write = @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
     }
 }
 fn @get_acc(img: Img, set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t) -> Acc {
@@ -75,7 +75,7 @@ fn @get_acc(img: Img, set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> p
 }
 fn @get_acc_offset(img: Img, set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, rox: i32, roy: i32) -> Acc {
     Acc {
-        read  : @|x, y|    get_pixel((y + roy) * img.stride + x + rox),
-        write : @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
+        read  = @|x, y|    get_pixel((y + roy) * img.stride + x + rox),
+        write = @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
     }
 }
