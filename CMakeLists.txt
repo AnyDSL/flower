@@ -123,3 +123,16 @@ add_subdirectory(test)
 add_subdirectory(apps)
 
 set(DSL_TYPE_FILES utils.impala stencil_lib.impala stencil_lib_img_proc.impala)
+
+# CPU-based examples
+if(DEVICE STREQUAL "cpu")
+    anydsl_runtime_wrap(MATMUL_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        IMPALA_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} src/utils.impala ${PIXEL_F32_FILE} src/mat_lib.impala src/matmul.impala)
+    add_executable(matmul ${MATMUL_PROGRAM})
+    target_link_libraries(matmul ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("matmul" matmul)
+endif()
