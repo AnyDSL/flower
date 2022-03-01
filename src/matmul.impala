@@ -1,3 +1,4 @@
+#[export]
 fn main(i: i32) -> i32 {
     let l = 4;
     let m = 8;
@@ -16,29 +17,29 @@ fn main(i: i32) -> i32 {
     let nops = 2 as i64 * l as i64 * m as i64 * n as i64;
     fn print_gflops(time: i64) -> () {
         print_string("Timing: ");
-        print_f64(time as f64 / 1000.0);
+        print_f64(time as f64 / 1000:f64);
         print_string(" ms\n");
         let gflops = (1.0e-9 * nops as f64) / (time as f64 * 1.0e-6);
         print_f64(gflops);
         print_string(" GFLOPS\n")
     }
 
-    fn bench_fun(fun: fn() -> ()) -> () {
+    fn bench_fun(fun: fn() -> ()) = @|| {
         let start = get_micro_time();
         fun();
         let end = get_micro_time();
         print_gflops(end - start);
-    }
+    };
 
-    with bench_fun() {
+    for bench_fun() {
         matmul_golden(R, A, B);
     }
 
-    with bench_fun() {
+    for bench_fun() {
         matmul_hand_tiled(C, A, B);
     }
 
-    with bench_fun() {
+    for bench_fun() {
         matmul_auto_tiled(C, A, B);
     }
 
