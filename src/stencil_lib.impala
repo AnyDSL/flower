@@ -113,14 +113,16 @@ fn @iterate_1dregion(body: fn((i32, i32), Boundary) -> ()) = @|lower: i32, upper
         }
     }
 };
+
 fn @iterate_2dregion(body: fn(((i32, i32), (i32, i32)), Region) -> ()) =
-    @|lower: (i32, i32), upper: (i32, i32), tile_size: (i32, i32)| {
-    for bounds_row, boundary_row in iterate_1dregion(lower(0), upper(0), tile_size(0)) {
-        for bounds_col, boundary_col in iterate_1dregion(lower(1), upper(1), tile_size(1)) {
+    @|(lower_row: i32, lower_col: i32), (upper_row: i32, upper_col: i32), (tile_size_row: i32, tile_size_col: i32)| {
+    for bounds_row, boundary_row in iterate_1dregion(lower_row, upper_row, tile_size_row) {
+        for bounds_col, boundary_col in iterate_1dregion(lower_col, upper_col, tile_size_col) {
             @body((bounds_row, bounds_col), (boundary_row, boundary_col))
         }
     }
 };
+
 
 fn @nobh_center (idx: i32, _lower: i32, _upper: i32) = BoundaryMode::Index(idx);
 fn @clamp_lower (idx: i32, lower: i32, _upper: i32)  = BoundaryMode::Index(if idx < lower { lower } else { idx });
@@ -170,7 +172,7 @@ fn @read_pixel(x: i32, y: i32, region: Region, roi: RoI, read: fn(i32, i32) -> p
         (BoundaryMode::Index(x), BoundaryMode::Index(y)) => read(x, y),
         (BoundaryMode::Const(c), _) => c,
         (_, BoundaryMode::Const(c)) => c,
-        _ => undef[pixel_t]()
+        //_ => undef[pixel_t]()
     }
 }
 
@@ -208,7 +210,7 @@ fn @sum_mask(size: i32, data: fn(i32) -> pixel_t) -> pixel_t {
 }
 
 fn @get_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
-    let data_sum = @|x| -> pixel_t { data(x % 3)(x / 3) };
+    let data_sum = @|x: pixel_t| -> pixel_t { data(x % 3)(x / 3) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(9, data_sum),
@@ -216,7 +218,7 @@ fn @get_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
     }
 }
 fn @get_mask5(data: [[pixel_t * 5] * 5]) -> Mask {
-    let data_sum = @|x| -> pixel_t { data(x % 5)(x / 5) };
+    let data_sum = @|x: pixel_t| -> pixel_t { data(x % 5)(x / 5) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(25, data_sum),
@@ -226,7 +228,7 @@ fn @get_mask5(data: [[pixel_t * 5] * 5]) -> Mask {
 
 fn @get_mask9(data: [[pixel_t * 9] * 9]) -> Mask {
     let size = 9;
-    let data_sum = @|x| -> pixel_t { data(x % size)(x / size) };
+    let data_sum = @|x: pixel_t| -> pixel_t { data(x % size)(x / size) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
@@ -236,7 +238,7 @@ fn @get_mask9(data: [[pixel_t * 9] * 9]) -> Mask {
 
 fn @get_mask13(data: [[pixel_t * 13] * 13]) -> Mask {
     let size = 13;
-    let data_sum = @|x| -> pixel_t { data(x % size)(x / size) };
+    let data_sum = @|x: pixel_t| -> pixel_t { data(x % size)(x / size) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
@@ -245,7 +247,7 @@ fn @get_mask13(data: [[pixel_t * 13] * 13]) -> Mask {
 }
 
 fn @get_mask_sep3(data: [pixel_t * 3]) -> MaskSep {
-    let data = @|x| -> pixel_t { data(x) };
+    let data = @|x: pixel_t| -> pixel_t { data(x) };
     MaskSep {
         data = data,
         sum  = sum_mask(3, data),
@@ -253,7 +255,7 @@ fn @get_mask_sep3(data: [pixel_t * 3]) -> MaskSep {
     }
 }
 fn @get_mask_sep5(data: [pixel_t * 5]) -> MaskSep {
-    let data = @|x| -> pixel_t { data(x) };
+    let data = @|x: pixel_t| -> pixel_t { data(x) };
     MaskSep {
         data = data,
         sum  = sum_mask(5, data),
@@ -288,7 +290,7 @@ fn @get_RoI(offset_x: i32, offset_y: i32, width: i32, height: i32) -> RoI {
         o_x    = offset_x,
         o_y    = offset_y,
         width  = width,
-        height = height 
+        height = height
     }
 }
 

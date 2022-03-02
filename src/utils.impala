@@ -61,7 +61,8 @@ fn @benchmark_fpga(sync: fn() -> (), body: fn() -> ()) -> () {
     let kernel_time = get_micro_time() - start;
     total_fpga_timing += kernel_time;
 }
-fn @benchmark_host(num_iter: i32, body: fn() -> ()) -> () {
+//fn @benchmark_host(num_iter: i32, body: fn() -> ()) -> () {
+fn @benchmark_host(body: fn() -> ()) = @|num_iter: i32| {
     // sum of kernel times
     let total_times_buf = alloc_cpu((num_iter + 1) as i64 * sizeof[i64]());
     let total_times = bitcast[&mut[i64]](total_times_buf.data);
@@ -100,7 +101,7 @@ fn @benchmark_host(num_iter: i32, body: fn() -> ()) -> () {
     print_string(") | minimum | maximum) ms\n");
     release(times_buf);
     total_fpga_timing = total_times(1 + num_iter/2);
-}
+};
 
 
 
