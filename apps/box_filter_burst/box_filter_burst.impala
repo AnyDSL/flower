@@ -1,8 +1,10 @@
+
+static mut mm_to_str_buf: pipe;
+static mut str_to_mm_buf: pipe;
+
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
-    static mut mm_to_str_buf: pipe;
-    static mut str_to_mm_buf: pipe;
     let arr    = create_host_img(width, height);
     let out    = create_host_img(width, height);
     let mm_to_str = create_virtual_img(width, height, &mut mm_to_str_buf);

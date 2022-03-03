@@ -10,11 +10,11 @@ fn init_data(arr: Img) -> () {
     }
 }
 
+static mut luma_c : pipe;
 
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
-    static mut luma_c : pipe;
 
     let arr = create_host_img(width, height);
     let out = create_host_img(width, height);

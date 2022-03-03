@@ -1,6 +1,8 @@
+
+static mut out0_buf: pipe;
+static mut out1_buf: pipe;
+
 fn main() -> i32 {
-    static mut out0_buf: pipe;
-    static mut out1_buf: pipe;
     let width  = 1024;
     let height = 1024;
     let arr    = create_host_img(width, height);

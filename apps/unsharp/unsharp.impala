@@ -15,17 +15,19 @@ fn init_data(arr: Img) -> () {
     }
 }
 
+
+static mut ch_in_to_blur    : pipe;
+static mut ch_in_to_sharpen : pipe;
+static mut ch_in_to_mask    : pipe;
+static mut ch_blur_to_sharpen_or_mask : pipe;
+static mut ch_blur_to_sharpen : pipe;
+static mut ch_blur_to_mask    : pipe;
+static mut ch_sharpen_to_mask : pipe;
+
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
 
-    static mut ch_in_to_blur    : pipe;
-    static mut ch_in_to_sharpen : pipe;
-    static mut ch_in_to_mask    : pipe;
-    static mut ch_blur_to_sharpen_or_mask : pipe;
-    static mut ch_blur_to_sharpen : pipe;
-    static mut ch_blur_to_mask    : pipe;
-    static mut ch_sharpen_to_mask : pipe;
 
     let input_image = create_host_img(width, height);
     let out_host = create_host_img(width, height);

@@ -10,15 +10,15 @@ fn init_data(arr: Img) -> () {
     }
 }
 
+static mut str_to_mm_buf: pipe;
+static mut ch_in_to_gx: pipe;
+static mut ch_in_to_gy: pipe;
+static mut ch_gx_to_mag: pipe;
+static mut ch_gy_to_mag: pipe;
 
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
-    static mut str_to_mm_buf: pipe;
-    static mut ch_in_to_gx: pipe;
-    static mut ch_in_to_gy: pipe;
-    static mut ch_gx_to_mag: pipe;
-    static mut ch_gy_to_mag: pipe;
 
     let arr = create_host_img(width, height);
     let out = create_host_img(width, height);
