@@ -15,48 +15,51 @@ fn init_data(arr: Img , fill_x :i32, fill_y: i32) -> () {
     }
 }
 
+
+
+
+static mut channel_in_frame_1_to_ix : pipe;
+static mut channel_in_frame_1_to_iy : pipe;
+static mut channel_in_frame_1_to_it : pipe;
+static mut channel_it : pipe;
+static mut channel_ix : pipe;
+static mut channel_iy : pipe;
+static mut channel_ixx : pipe;
+static mut channel_iyy : pipe;
+static mut channel_ixy : pipe;
+static mut channel_ixt : pipe;
+static mut channel_iyt : pipe;
+static mut channel_ix_to_ixx : pipe;
+static mut channel_ix_to_ixy : pipe;
+static mut channel_ix_to_ixt : pipe;
+static mut channel_iy_to_iyy : pipe;
+static mut channel_iy_to_ixy : pipe;
+static mut channel_iy_to_iyt : pipe;
+static mut channel_it_to_ixt : pipe;
+static mut channel_it_to_iyt : pipe;
+static mut channel_wixx : pipe;
+static mut channel_wiyy : pipe;
+static mut channel_wixy : pipe;
+static mut channel_wixt : pipe;
+static mut channel_wiyt : pipe;
+static mut channel_denominator : pipe;
+static mut channel_inv_denom_of_v_x : pipe;
+static mut channel_inv_denom_of_v_y : pipe;
+static mut channel_wixt_to_v_x : pipe;
+static mut channel_wixt_to_v_y : pipe;
+static mut channel_wixy_to_v_x : pipe;
+static mut channel_wixy_to_v_y : pipe;
+static mut channel_wixy_to_denom : pipe;
+static mut channel_wiyt_to_v_x : pipe;
+static mut channel_wiyt_to_v_y : pipe;
+static mut channel_wiyy_to_denom : pipe;
+static mut channel_wiyy_to_v_x :pipe;
+static mut channel_wixx_to_denom : pipe;
+static mut channel_wixx_to_v_y : pipe;
+
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
-
-    static mut channel_in_frame_1_to_ix : pipe;
-    static mut channel_in_frame_1_to_iy : pipe;
-    static mut channel_in_frame_1_to_it : pipe;
-    static mut channel_it : pipe;
-    static mut channel_ix : pipe;
-    static mut channel_iy : pipe;
-    static mut channel_ixx : pipe;
-    static mut channel_iyy : pipe;
-    static mut channel_ixy : pipe;
-    static mut channel_ixt : pipe;
-    static mut channel_iyt : pipe;
-    static mut channel_ix_to_ixx : pipe;
-    static mut channel_ix_to_ixy : pipe;
-    static mut channel_ix_to_ixt : pipe;
-    static mut channel_iy_to_iyy : pipe;
-    static mut channel_iy_to_ixy : pipe;
-    static mut channel_iy_to_iyt : pipe;
-    static mut channel_it_to_ixt : pipe;
-    static mut channel_it_to_iyt : pipe;
-    static mut channel_wixx : pipe;
-    static mut channel_wiyy : pipe;
-    static mut channel_wixy : pipe;
-    static mut channel_wixt : pipe;
-    static mut channel_wiyt : pipe;
-    static mut channel_denominator : pipe;
-    static mut channel_inv_denom_of_v_x : pipe;
-    static mut channel_inv_denom_of_v_y : pipe;
-    static mut channel_wixt_to_v_x : pipe;
-    static mut channel_wixt_to_v_y : pipe;
-    static mut channel_wixy_to_v_x : pipe;
-    static mut channel_wixy_to_v_y : pipe;
-    static mut channel_wixy_to_denom : pipe;
-    static mut channel_wiyt_to_v_x : pipe;
-    static mut channel_wiyt_to_v_y : pipe;
-    static mut channel_wiyy_to_denom : pipe;
-    static mut channel_wiyy_to_v_x :pipe;
-    static mut channel_wixx_to_denom : pipe;
-    static mut channel_wixx_to_v_y : pipe;
 
     let in_frame_1 = create_host_img(width, height);
     let in_frame_2 = create_host_img(width, height);

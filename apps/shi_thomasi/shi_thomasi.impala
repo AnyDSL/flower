@@ -1,29 +1,31 @@
-extern
+
+static mut in_c0  : pipe;
+static mut in_c1  : pipe;
+static mut dx_c  : pipe;
+static mut dy_c  : pipe;
+static mut dxx_c : pipe;
+static mut dxy_c : pipe;
+static mut dyy_c : pipe;
+static mut gxx_c : pipe;
+static mut gxy_c : pipe;
+static mut gyy_c : pipe;
+static mut dx_c0 : pipe;
+static mut dx_c1 : pipe;
+static mut dy_c0 : pipe;
+static mut dy_c1 : pipe;
+
+#[export]
 fn shi_thomasi(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
     let width  = 1024;
     let height = 1024;
     let stride = 1024;
 
-    static mut in_c0  : pipe;
-    static mut in_c1  : pipe;
-    static mut dx_c  : pipe;
-    static mut dy_c  : pipe;
-    static mut dxx_c : pipe;
-    static mut dxy_c : pipe;
-    static mut dyy_c : pipe;
-    static mut gxx_c : pipe;
-    static mut gxy_c : pipe;
-    static mut gyy_c : pipe;
-    static mut dx_c0 : pipe;
-    static mut dx_c1 : pipe;
-    static mut dy_c0 : pipe;
-    static mut dy_c1 : pipe;
     //         -- ix -|-- ixx -- sxx -
     //       /         \              \
     // in --            > ixy -- sxy --> st -- out
     //       \         /              /
     //         -- iy -|-- iyy -- syy -
-    let input  = new_img(width, height, stride, Buffer { data : bitcast[&[i8]](img_data), size : ((width * height) as i64 * sizeof[pixel_t]()) as i64, device : 0 });
+    let input  = new_img(width, height, stride, Buffer { data = bitcast[&mut [i8]](img_data), size = ((width * height) as i64 * sizeof[pixel_t]()) as i64, device = 0 });
     let out_image = create_host_img(width, height);
     let dx  = create_virtual_img(width, height, &mut dx_c );
     let dy  = create_virtual_img(width, height, &mut dy_c );
