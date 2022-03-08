@@ -1,6 +1,6 @@
-type BoundaryFn   = fn(i32, i32, i32) -> BoundaryMode;
-type StencilFn    = fn(Intrinsics, i32, i32, Acc, Acc, Mask) -> ();
-type StencilSepFn = fn(Intrinsics, i32, i32, Acc, Acc, MaskSep, bool) -> ();
+type BoundaryFn[T]   = fn(i32, i32, i32) -> BoundaryMode[T];
+type StencilFn[T]    = fn(Intrinsics, i32, i32, Acc[T], Acc[T], Mask) -> ();
+type StencilSepFn[T] = fn(Intrinsics, i32, i32, Acc[T], Acc[T], MaskSep, bool) -> ();
 type Region       = (Boundary, Boundary);
 
 struct RoI {
@@ -10,9 +10,9 @@ struct RoI {
     height : i32
 }
 
-struct Acc {
-    read  : fn(i32, i32) -> pixel_t,
-    write : fn(i32, i32, pixel_t) -> (),
+struct Acc[T] {
+    read  : fn(i32, i32) -> T,
+    write : fn(i32, i32, T) -> (),
 }
 
 struct Mask {
@@ -32,12 +32,12 @@ enum Boundary {
     Lower, Center, Upper, Unknown
 }
 
-enum BoundaryMode {
+enum BoundaryMode[T] {
     Index(i32),
-    Const(pixel_t)
+    Const(T)
 }
 
-fn @apply_stencil(x: i32, y: i32, acc: Acc, mask: Mask) -> pixel_t {
+fn @apply_stencil[T](x: i32, y: i32, acc: Acc[T], mask: Mask) -> T {
     let mut sum = 0 as pixel_t;
     let half_range_y = mask.size_y / 2;
     let half_range_x = mask.size_x / 2;
@@ -46,7 +46,7 @@ fn @apply_stencil(x: i32, y: i32, acc: Acc, mask: Mask) -> pixel_t {
         for i in unroll(-half_range_x, half_range_x+1) {
             let stencil_val = mask.data(j + half_range_y, i + half_range_x);
             if stencil_val != 0 as pixel_t {
-                sum += acc.read(x + i, y + j) * stencil_val;
+                sum +=bitcast[pixel_t](acc.read(x + i, y + j))* stencil_val;
             } else {
                 // additional logic for empty stencil value
             }
@@ -57,10 +57,10 @@ fn @apply_stencil(x: i32, y: i32, acc: Acc, mask: Mask) -> pixel_t {
         sum /= mask.sum;
     }
 
-    sum
+    bitcast[T](sum)
 }
 
-fn @apply_stencil_sep(x: i32, y: i32, acc: Acc, mask: MaskSep, row: bool) -> pixel_t {
+fn @apply_stencil_sep[T](x: i32, y: i32, acc: Acc[T], mask: MaskSep, row: bool) -> T {
     let mut sum = 0 as pixel_t;
     let half_range = mask.size / 2;
 
@@ -68,9 +68,10 @@ fn @apply_stencil_sep(x: i32, y: i32, acc: Acc, mask: MaskSep, row: bool) -> pix
         let stencil_val = mask.data(i + half_range);
         if stencil_val != 0 as pixel_t {
             if row {
-                sum += acc.read(x + i, y) * stencil_val;
+                sum += bitcast[pixel_t](acc.read(x + i, y)) * stencil_val;
+                //sum += acc.read(x + i, y) * stencil_val;
             } else {
-                sum += acc.read(x, y + i) * stencil_val;
+                sum += bitcast[pixel_t](acc.read(x, y + i)) * stencil_val;
             }
         } else {
             // additional logic for empty stencil value
@@ -81,7 +82,7 @@ fn @apply_stencil_sep(x: i32, y: i32, acc: Acc, mask: MaskSep, row: bool) -> pix
         sum /= mask.sum;
     }
 
-    sum
+    bitcast[T](sum)
 }
 
 // boundary handling functions
@@ -124,27 +125,27 @@ fn @iterate_2dregion(body: fn(((i32, i32), (i32, i32)), Region) -> ()) =
 };
 
 
-fn @nobh_center (idx: i32, _lower: i32, _upper: i32) = BoundaryMode::Index(idx);
-fn @clamp_lower (idx: i32, lower: i32, _upper: i32)  = BoundaryMode::Index(if idx < lower { lower } else { idx });
-fn @clamp_upper (idx: i32, _lower: i32, upper: i32)  = BoundaryMode::Index(if idx >= upper { upper - 1 } else { idx });
-fn @mirror_lower(idx: i32, lower: i32, _upper: i32)  = BoundaryMode::Index(if idx < lower { lower + (lower - idx-1) } else { idx });
-fn @mirror_upper(idx: i32, _lower: i32, upper: i32)  = BoundaryMode::Index(if idx >= upper { upper - (idx+1 - upper) } else { idx });
-fn @repeat_lower(idx: i32, lower: i32, upper: i32)   = BoundaryMode::Index(if idx < lower { idx + (lower + upper) } else { idx });
-fn @repeat_upper(idx: i32, lower: i32, upper: i32)   = BoundaryMode::Index(if idx >= upper { idx - (lower + upper) } else { idx });
-fn @const_lower (idx: i32, lower: i32, _upper: i32, cval: pixel_t) = if idx < lower { BoundaryMode::Const(cval) } else { BoundaryMode::Index(idx) };
-fn @const_upper (idx: i32, _lower: i32, upper: i32, cval: pixel_t) = if idx >= upper { BoundaryMode::Const(cval) } else { BoundaryMode::Index(idx) };
-fn @wrap_const_fun(fun: fn(i32, i32, i32, pixel_t) -> BoundaryMode, cval: pixel_t) -> BoundaryFn {
+fn @nobh_center[T](idx: i32, _lower: i32, _upper: i32) = BoundaryMode[T]::Index(idx);
+fn @clamp_lower[T](idx: i32, lower: i32, _upper: i32)  = BoundaryMode[T]::Index(if idx < lower { lower } else { idx });
+fn @clamp_upper[T](idx: i32, _lower: i32, upper: i32)  = BoundaryMode[T]::Index(if idx >= upper { upper - 1 } else { idx });
+fn @mirror_lower[T](idx: i32, lower: i32, _upper: i32)  = BoundaryMode[T]::Index(if idx < lower { lower + (lower - idx-1) } else { idx });
+fn @mirror_upper[T](idx: i32, _lower: i32, upper: i32)  = BoundaryMode[T]::Index(if idx >= upper { upper - (idx+1 - upper) } else { idx });
+fn @repeat_lower[T](idx: i32, lower: i32, upper: i32)   = BoundaryMode[T]::Index(if idx < lower { idx + (lower + upper) } else { idx });
+fn @repeat_upper[T](idx: i32, lower: i32, upper: i32)   = BoundaryMode[T]::Index(if idx >= upper { idx - (lower + upper) } else { idx });
+fn @const_lower [T](idx: i32, lower: i32, _upper: i32, cval: T) = if idx < lower { BoundaryMode[T]::Const(cval) } else { BoundaryMode[T]::Index(idx) };
+fn @const_upper[T] (idx: i32, _lower: i32, upper: i32, cval: T) = if idx >= upper { BoundaryMode[T]::Const(cval) } else { BoundaryMode[T]::Index(idx) };
+fn @wrap_const_fun[T](fun: fn(i32, i32, i32, T) -> BoundaryMode[T], cval: T) -> BoundaryFn[T] {
     @|idx, lower, upper| fun(idx, lower, upper, cval)
 }
 
-fn @map_boundary_mode(mode: BoundaryMode, bh_fun: fn(i32) -> BoundaryMode) -> BoundaryMode {
+fn @map_boundary_mode[T](mode: BoundaryMode[T], bh_fun: fn(i32) -> BoundaryMode[T]) -> BoundaryMode[T] {
     match mode {
-        BoundaryMode::Index(idx) => bh_fun(idx),
-        BoundaryMode::Const(_val) => mode
+        BoundaryMode[T]::Index(idx) => bh_fun(idx),
+        BoundaryMode[T]::Const(_val) => mode
     }
 }
 
-fn @read_pixel(x: i32, y: i32, region: Region, roi: RoI, read: fn(i32, i32) -> pixel_t, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> pixel_t {
+fn @read_pixel[T](x: i32, y: i32, region: Region, roi: RoI, read: fn(i32, i32) -> T, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> T {
     let lower_x = roi.o_x;
     let lower_y = roi.o_y;
     let upper_x = roi.o_x + roi.width;
@@ -154,44 +155,44 @@ fn @read_pixel(x: i32, y: i32, region: Region, roi: RoI, read: fn(i32, i32) -> p
         (row, col) => {
             let mode_x = match row {
                 Boundary::Lower   => bh_lower(roi.o_x + x, lower_x, upper_x),
-                Boundary::Center  => BoundaryMode::Index(roi.o_x + x),
+                Boundary::Center  => BoundaryMode[T]::Index(roi.o_x + x),
                 Boundary::Upper   => bh_upper(roi.o_x + x, lower_x, upper_x),
-                Boundary::Unknown => map_boundary_mode(bh_lower(roi.o_x + x, lower_x, upper_x), @|idx| bh_upper(idx, lower_x, upper_x))
+                Boundary::Unknown => map_boundary_mode[T](bh_lower(roi.o_x + x, lower_x, upper_x), @|idx| bh_upper(idx, lower_x, upper_x))
             };
             let mode_y = match col {
                 Boundary::Lower   => bh_lower(roi.o_y + y, lower_y, upper_y),
-                Boundary::Center  => BoundaryMode::Index(roi.o_y + y),
+                Boundary::Center  => BoundaryMode[T]::Index(roi.o_y + y),
                 Boundary::Upper   => bh_upper(roi.o_y + y, lower_y, upper_y),
-                Boundary::Unknown => map_boundary_mode(bh_lower(roi.o_y + y, lower_y, upper_y), @|idx| bh_upper(idx, lower_y, upper_y))
+                Boundary::Unknown => map_boundary_mode[T](bh_lower(roi.o_y + y, lower_y, upper_y), @|idx| bh_upper(idx, lower_y, upper_y))
             };
             (mode_x, mode_y)
         }
     };
 
     match (mode_x, mode_y) {
-        (BoundaryMode::Index(x), BoundaryMode::Index(y)) => read(x, y),
-        (BoundaryMode::Const(c), _) => c,
-        (_, BoundaryMode::Const(c)) => c,
+        (BoundaryMode[T]::Index(x), BoundaryMode[T]::Index(y)) => read(x, y),
+        (BoundaryMode[T]::Const(c), _) => c,
+        (_, BoundaryMode[T]::Const(c)) => c,
         //_ => undef[pixel_t]()
     }
 }
 
 // &   [pixel_t] on CPU/AVX
 // &[3][pixel_t] on CUDA/NVVM & OpenCL/AMDGPU
-fn @get_acc_bh_memory(set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, width: i32, height: i32, region: Region, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Acc {
-    get_acc_bh_offset_memory(set_pixel, get_pixel, width, height, 0, 0, region, bh_lower, bh_upper)
+fn @get_acc_bh_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
+    get_acc_bh_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0, region, bh_lower, bh_upper)
 }
-fn @get_acc_bh_offset_memory(set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, width: i32, height: i32, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Acc {
-    Acc {
-        read  = @|x, y|    read_pixel(x + rox, y + roy, region, RoI { o_x = 0, o_y = 0, width = width, height = height }, @|x, y| { get_pixel(y * width + x) }, bh_lower, bh_upper),
+fn @get_acc_bh_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
+    Acc[T] {
+        read  = @|x, y|    read_pixel[T](x + rox, y + roy, region, RoI { o_x = 0, o_y = 0, width = width, height = height }, @|x, y| { get_pixel(y * width + x) }, bh_lower, bh_upper),
         write = @|x, y, v| set_pixel((y + roy) * width + x + rox, v)
     }
 }
-fn @get_acc_memory(set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, width: i32, height: i32) -> Acc {
-    get_acc_offset_memory(set_pixel, get_pixel, width, height, 0, 0)
+fn @get_acc_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32) -> Acc[T] {
+    get_acc_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0)
 }
-fn @get_acc_offset_memory(set_pixel: fn(i32, pixel_t) -> (), get_pixel: fn(i32) -> pixel_t, width: i32, _height: i32, rox: i32, roy: i32) -> Acc {
-    Acc {
+fn @get_acc_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, _height: i32, rox: i32, roy: i32) -> Acc[T] {
+    Acc[T] {
         read  = @|x, y|    get_pixel((y + roy) * width + x + rox),
         write = @|x, y, v| set_pixel((y + roy) * width + x + rox, v)
     }
@@ -263,7 +264,7 @@ fn @get_mask_sep5(data: [pixel_t * 5]) -> MaskSep {
     }
 }
 
-fn @display_image(arr : Acc, roi_x : i32, roi_y : i32) -> () {
+fn @display_image[T](arr : Acc[T], roi_x : i32, roi_y : i32) -> () {
     let width  = 10;
     let height = 10;
     let upper_x = roi_x + width;
@@ -277,6 +278,7 @@ fn @display_image(arr : Acc, roi_x : i32, roi_y : i32) -> () {
     print_string(")\n");
     for y in range(roi_y, upper_y) {
         for x in range(roi_x, upper_x) {
+            //let pixel = bitcast[T](arr.read(x, y)) ;
             let pixel = arr.read(x, y);
             print_pixel(pixel);
             print_string("\t\t");
@@ -294,7 +296,7 @@ fn @get_RoI(offset_x: i32, offset_y: i32, width: i32, height: i32) -> RoI {
     }
 }
 
-fn @check(in_acc: Acc, out_acc: Acc, ref_acc: Acc, prop: RoI) -> i32 {
+fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32 {
     let mut err_x = 0;
     let mut err_y = 0;
     let mut passed = 0;
@@ -306,7 +308,7 @@ fn @check(in_acc: Acc, out_acc: Acc, ref_acc: Acc, prop: RoI) -> i32 {
                x > prop.o_x - 1 && x < prop.o_x + prop.width {
                 let ref = ref_acc.read(x, y);
                 let res = out_acc.read(x, y);
-                if !is_same_pixel(ref, res) && passed != 42 {
+                if !is_same_pixel(bitcast[pixel_t](ref), bitcast[pixel_t](res)) && passed != 42 {
                     err_x = x; err_y = y;
                     passed = 42;
                 }
