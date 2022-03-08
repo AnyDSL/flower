@@ -8,11 +8,11 @@ fn main() -> i32 {
 
     //let mask_sep = get_mask_sep5(box_mask_sep5);
     let mask   = get_mask5(box_mask5);
-    let kernel = apply_stencil;
-    let lower  = clamp_lower;
-    let upper  = clamp_upper;
+    let kernel = apply_stencil[pixel_t];
+    let lower  = clamp_lower[pixel_t];
+    let upper  = clamp_upper[pixel_t];
     let enable_offset = 0;
-    let iteration_fun = iteration;                  // SS
+    let iteration_fun = iteration[pixel_t];                  // SS
 
     for benchmark_host(num_host_iter) {
         for math, x, y, out_acc, arr_acc, mask in iteration_fun(math, out, arr, mask, lower, upper) {
@@ -23,9 +23,9 @@ fn main() -> i32 {
 
     fn reference() -> i32 {
         let ref = create_host_img(width, height);
-        let arr_acc = get_acc_bh(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
-        let out_acc = get_acc   (out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
-        let ref_acc = get_acc   (ref, |idx, val| { bitcast[&mut[pixel_t]](ref.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](ref.buf.data)(idx));
+        let arr_acc = get_acc_bh[pixel_t](arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
+        let out_acc = get_acc[pixel_t](out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
+        let ref_acc = get_acc[pixel_t](ref, |idx, val| { bitcast[&mut[pixel_t]](ref.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](ref.buf.data)(idx));
 
         for y in range(0, out.height) {
             for x in range(0, out.width) {
@@ -37,7 +37,7 @@ fn main() -> i32 {
 
         let offset  = enable_offset * (mask.size_x / 2);
         let prop    = get_RoI(offset, offset, width - 2 * offset, height - 2 * offset);
-        check(arr_acc, out_acc, ref_acc, prop) 
+        check(arr_acc, out_acc, ref_acc, prop)
     }
     let result = reference();
     release(arr.buf);
