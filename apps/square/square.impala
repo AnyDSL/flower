@@ -13,7 +13,7 @@ fn main() -> i32 {
     }
 
     for benchmark_host(num_host_iter) {
-        for math, x, y, out, pin in iteration_point(math, out, arr) {
+        for math, x, y, out, pin in iteration_point[pixel_t](math, out, arr) {
             out.write(x, y, kernel(pin));
         }
     }
@@ -21,6 +21,7 @@ fn main() -> i32 {
 
     fn reference() -> i32 {
         let ref     = create_host_img(width, height);
+        let get_acc = get_acc[pixel_t];
         let arr_acc = get_acc(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx));
         let out_acc = get_acc(out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
         let ref_acc = get_acc(ref, |idx, val| { bitcast[&mut[pixel_t]](ref.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](ref.buf.data)(idx));
