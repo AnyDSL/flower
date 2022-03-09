@@ -30,21 +30,21 @@ fn main() -> i32 {
     let mask_y   = get_mask3(sobel_masky);
     let threshold = 80 as i32;
 
-    let lower = nobh_center;
-    let upper = nobh_center;
-    //let lower = clamp_lower;
-    //let upper = clamp_upper;
-    //let lower = mirro_lower;
-    //let upper = mirro_upper;
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
+    //let lower = mirro_lower[pixel_t];
+    //let upper = mirro_upper[pixel_t];
     let enable_offset = 1;
 
     for benchmark_host(num_host_iter) {
 
-        for math, x, y, out, in_mm in iteration_point(math, mm_to_str, arr) {
+        for math, x, y, out, in_mm in iteration_point[pixel_t](math, mm_to_str, arr) {
             out.write(x, y, in_mm);
         }
 
-        for math, x, y, out, arr in iteration_point(math, luma, mm_to_str) {
+        for math, x, y, out, arr in iteration_point[pixel_t](math, luma, mm_to_str) {
             let b = arr & 0xff;
             let g = (arr >> 8)  & 0xff;
             let r = (arr >> 16) & 0xff;
@@ -52,7 +52,7 @@ fn main() -> i32 {
             out.write(x, y, pix_luma);
         }
 
-        for math, x, y, out, arr, mask in iteration(math, str_to_mm, luma, mask_x, lower, upper) {
+        for math, x, y, out, arr, mask in iteration[pixel_t](math, str_to_mm, luma, mask_x, lower, upper) {
             let pix_dx = apply_stencil(x, y, arr, mask);
             let pix_dy = apply_stencil(x, y, arr, mask);
             let val = abs(pix_dx) + abs(pix_dy);
@@ -61,15 +61,15 @@ fn main() -> i32 {
             out.write(x, y, res);
         }
 
-        for math, x, y, out, str_to_mm in iteration_point(math, out, str_to_mm) {
+        for math, x, y, out, str_to_mm in iteration_point[pixel_t](math, out, str_to_mm) {
             out.write(x, y, str_to_mm);
         }
     }
     print_total_timing();
 
     // display results
-    let arr_acc = get_acc(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx));
-    let out_acc = get_acc(out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
+    let arr_acc = get_acc[pixel_t](arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx));
+    let out_acc = get_acc[pixel_t](out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
 
     let roi_x = 0;
     let roi_y = 0;
