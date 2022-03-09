@@ -9,13 +9,13 @@ fn main() -> i32 {
                              [    jacobi_b, jacobi_a, jacobi_b    ],
                              [0 as pixel_t, jacobi_b, 0 as pixel_t]]);
 
-    let lower = nobh_center;
-    let upper = nobh_center;
-    //let lower = clamp_lower;
-    //let upper = clamp_upper;
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
     let enable_offset = 1;
 
-    let iteration_fun = iteration;                  // SS
+    let iteration_fun = iteration[pixel_t];                  // SS
     //let iteration_fun = iteration_bounds;           // SS + BH
     //let iteration_fun = iteration_advanced;         // SS + SM
 
@@ -27,6 +27,9 @@ fn main() -> i32 {
 
     fn reference() -> i32 {
         let mut passed = 0;
+        let get_acc_bh = get_acc_bh[pixel_t];
+        let get_acc = get_acc[pixel_t];
+
         let arr_acc = get_acc_bh(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
         let out_acc = get_acc   (out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
 
