@@ -1,6 +1,9 @@
 type pixel_t = i32;
+
 static nvvm_ldg = nvvm_ldg_i32;
 static cuda_ldg = cuda_ldg_i32;
+
+
 fn @is_same_pixel(a: pixel_t, b: pixel_t) -> bool { a == b }
 fn @print_pixel[T](pixel: T) -> () { print_i32(bitcast[pixel_t](pixel)) }
 fn @absolute(a: pixel_t) -> pixel_t {abs(a)}

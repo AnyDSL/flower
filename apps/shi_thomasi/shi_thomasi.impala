@@ -20,6 +20,12 @@ fn shi_thomasi(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
     let height = 1024;
     let stride = 1024;
 
+    let iteration =  iteration[pixel_t];
+    let iteration_point =  iteration_point[pixel_t];
+    let iteration_point2 = iteration_point2[pixel_t];
+    let iteration_point3 = iteration_point3[pixel_t];
+    let get_acc = get_acc[pixel_t];
+
     //         -- ix -|-- ixx -- sxx -
     //       /         \              \
     // in --            > ixy -- sxy --> st -- out
@@ -40,12 +46,12 @@ fn shi_thomasi(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
     let mdx = get_mask3(sobel_mask3_x);
     let mdy = get_mask3(sobel_mask3_y);
 
-    let lower = nobh_center;
-    let upper = nobh_center;
-    //let lower = clamp_lower;
-    //let upper = clamp_upper;
-    //let lower = mirro_lower;
-    //let upper = mirro_upper;
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
+    //let lower = mirro_lower[pixel_t];
+    //let upper = mirro_upper[pixel_t];
     let enable_offset = 1;
 
     for benchmark_host(num_host_iter) {
