@@ -61,6 +61,14 @@ fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
 
+    let iteration =  iteration[pixel_t];
+    let iteration_point =  iteration_point[pixel_t];
+    let iteration_point2 = iteration_point2[pixel_t];
+    let iteration_point3 = iteration_point3[pixel_t];
+    let iteration_point5 = iteration_point5[pixel_t];
+    let get_acc = get_acc[pixel_t];
+
+
     let in_frame_1 = create_host_img(width, height);
     let in_frame_2 = create_host_img(width, height);
     let out_host_v_x = create_host_img(width, height);
@@ -91,12 +99,12 @@ fn main() -> i32 {
     let mask_y = get_mask3(scharr_masky);
     let mask_a = get_mask3(average_mask3);
 
-    let lower = nobh_center;
-    let upper = nobh_center;
-    //let lower = clamp_lower;
-    //let upper = clamp_upper;
-    //let lower = mirro_lower;
-    //let upper = mirro_upper;
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
+    //let lower = mirro_lower[pixel_t];
+    //let upper = mirro_upper[pixel_t];
     let enable_offset = 0;
 
     // Solving I_x * U + I_y * V + I_t = 0
