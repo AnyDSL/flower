@@ -1,6 +1,7 @@
+static mut mm_to_str_buf: pipe;
+static mut str_to_mm_buf: pipe;
+
 fn main() -> i32 {
-    static mut mm_to_str_buf: pipe;
-    static mut str_to_mm_buf: pipe;
     let width  = 1024;
     let height = 1024;
     let arr    = create_host_img(width, height);
@@ -13,17 +14,18 @@ fn main() -> i32 {
             [    jacobi_b, jacobi_a, jacobi_b    ],
             [0 as pixel_t, jacobi_b, 0 as pixel_t]]);
 
-    let lower = nobh_center;
-    let upper = nobh_center;
-    //let lower = clamp_lower;
-    //let upper = clamp_upper;
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
     let enable_offset = 1;
 
-    let iteration_fun = iteration;                  // SS
+    let iteration_fun = iteration[pixel_t];                  // SS
     //let iteration_fun = iteration_bounds;           // SS + BH
     //let iteration_fun = iteration_advanced;         // SS + SM
+    let iteration_point = iteration_point[pixel_t];
 
-    let num_host_iter = 5i;
+    let num_host_iter = 5;
     for benchmark_host(num_host_iter) {
         for math, x, y, out, in_mm in iteration_point(math, mm_to_str, arr) {
             out.write(x, y, in_mm);
@@ -42,8 +44,8 @@ fn main() -> i32 {
 
     fn reference() -> i32 {
         let mut passed = 0;
-        let arr_acc = get_acc_bh(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
-        let out_acc = get_acc   (out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
+        let arr_acc = get_acc_bh[pixel_t](arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
+        let out_acc = get_acc[pixel_t](out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
 
         let offset_x  = enable_offset * (stencil.size_x / 2);
         let offset_y  = enable_offset * (stencil.size_y / 2);
