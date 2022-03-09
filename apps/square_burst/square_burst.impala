@@ -12,6 +12,11 @@ fn main() -> i32 {
     init_rand(bitcast[&mut[pixel_t]](arr.buf.data), arr.stride, out.height);
     init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
 
+
+    // function declarations
+    let iteration_point = iteration_point[pixel_t];
+    let get_acc = get_acc[pixel_t];
+
     fn @kernel (pixel: pixel_t) -> pixel_t {
     //-------Your pointwise operation------
         pixel * pixel
