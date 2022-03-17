@@ -211,7 +211,7 @@ fn @sum_mask(size: i32, data: fn(i32) -> pixel_t) -> pixel_t {
 }
 
 fn @get_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
-    let data_sum = @|x: pixel_t| -> pixel_t { data(x % 3)(x / 3) };
+    let data_sum = @|x:i32| -> pixel_t { data(x % 3)(x / 3) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(9, data_sum),
@@ -219,7 +219,7 @@ fn @get_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
     }
 }
 fn @get_mask5(data: [[pixel_t * 5] * 5]) -> Mask {
-    let data_sum = @|x: pixel_t| -> pixel_t { data(x % 5)(x / 5) };
+    let data_sum = @|x:i32| -> pixel_t { data(x % 5)(x / 5) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(25, data_sum),
@@ -229,7 +229,7 @@ fn @get_mask5(data: [[pixel_t * 5] * 5]) -> Mask {
 
 fn @get_mask9(data: [[pixel_t * 9] * 9]) -> Mask {
     let size = 9;
-    let data_sum = @|x: pixel_t| -> pixel_t { data(x % size)(x / size) };
+    let data_sum = @|x:i32| -> pixel_t { data(x % size)(x / size) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
@@ -239,7 +239,7 @@ fn @get_mask9(data: [[pixel_t * 9] * 9]) -> Mask {
 
 fn @get_mask13(data: [[pixel_t * 13] * 13]) -> Mask {
     let size = 13;
-    let data_sum = @|x: pixel_t| -> pixel_t { data(x % size)(x / size) };
+    let data_sum = @|x:i32| -> pixel_t { data(x % size)(x / size) };
     Mask {
         data = @|x, y| -> pixel_t { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
@@ -248,7 +248,7 @@ fn @get_mask13(data: [[pixel_t * 13] * 13]) -> Mask {
 }
 
 fn @get_mask_sep3(data: [pixel_t * 3]) -> MaskSep {
-    let data = @|x: pixel_t| -> pixel_t { data(x) };
+    let data = @|x:i32| -> pixel_t { data(x) };
     MaskSep {
         data = data,
         sum  = sum_mask(3, data),
@@ -256,7 +256,7 @@ fn @get_mask_sep3(data: [pixel_t * 3]) -> MaskSep {
     }
 }
 fn @get_mask_sep5(data: [pixel_t * 5]) -> MaskSep {
-    let data = @|x: pixel_t| -> pixel_t { data(x) };
+    let data = @|x:i32| -> pixel_t { data(x) };
     MaskSep {
         data = data,
         sum  = sum_mask(5, data),
@@ -280,7 +280,7 @@ fn @display_image[T](arr : Acc[T], roi_x : i32, roi_y : i32) -> () {
         for x in range(roi_x, upper_x) {
             //let pixel = bitcast[T](arr.read(x, y)) ;
             let pixel = arr.read(x, y);
-            print_pixel(pixel);
+            print_pixel(bitcast[pixel_t](pixel));
             print_string("\t\t");
         }
         print_string("\n");
@@ -306,9 +306,11 @@ fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32
         for x in range(0, prop.width) {
             if y > prop.o_y - 1 && y < prop.o_y + prop.height &&
                x > prop.o_x - 1 && x < prop.o_x + prop.width {
-                let ref = ref_acc.read(x, y);
-                let res = out_acc.read(x, y);
-                if !is_same_pixel(bitcast[pixel_t](ref), bitcast[pixel_t](res)) && passed != 42 {
+                let ref = bitcast[pixel_t](ref_acc.read(x, y));
+                //let ref = ref_acc.read(x, y);
+                let res = bitcast[pixel_t](out_acc.read(x, y));
+                //let res = out_acc.read(x, y);
+                if !is_same_pixel(ref, res) && passed != 42 {
                     err_x = x; err_y = y;
                     passed = 42;
                 }
@@ -330,8 +332,8 @@ fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32
         display_image(ref_acc, roi_x, roi_y);
         print_string("Test FAILED @ (");
         print_i32(err_x); print_string(", "); print_i32(err_y); print_string(")!\n");
-        print_pixel(ref_acc.read(err_x, err_y)); print_string( " (ref) vs ");
-        print_pixel(out_acc.read(err_x, err_y)); print_string( " (res)\n");
+        print_pixel(bitcast[pixel_t](ref_acc.read(err_x, err_y))); print_string( " (ref) vs ");
+        print_pixel(bitcast[pixel_t](out_acc.read(err_x, err_y))); print_string( " (res)\n");
     }
     passed
 }
