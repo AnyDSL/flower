@@ -278,7 +278,6 @@ fn @display_image[T](arr : Acc[T], roi_x : i32, roi_y : i32) -> () {
     print_string(")\n");
     for y in range(roi_y, upper_y) {
         for x in range(roi_x, upper_x) {
-            //let pixel = bitcast[T](arr.read(x, y)) ;
             let pixel = arr.read(x, y);
             print_pixel(bitcast[pixel_t](pixel));
             print_string("\t\t");
@@ -307,9 +306,7 @@ fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32
             if y > prop.o_y - 1 && y < prop.o_y + prop.height &&
                x > prop.o_x - 1 && x < prop.o_x + prop.width {
                 let ref = bitcast[pixel_t](ref_acc.read(x, y));
-                //let ref = ref_acc.read(x, y);
                 let res = bitcast[pixel_t](out_acc.read(x, y));
-                //let res = out_acc.read(x, y);
                 if !is_same_pixel(ref, res) && passed != 42 {
                     err_x = x; err_y = y;
                     passed = 42;
