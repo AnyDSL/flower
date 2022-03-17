@@ -1,15 +1,15 @@
-static sobel_mask3_x = [[ -1.0f,  0.0f,  1.0f ],
-                       [ -2.0f,  0.0f,  2.0f ],
-                       [ -1.0f,  0.0f,  1.0f ]];
+static sobel_mask3_x = [[ -1.0:f32,  0.0:f32,  1.0:f32 ],
+                       [ -2.0:f32,  0.0:f32,  2.0:f32 ],
+                       [ -1.0:f32,  0.0:f32,  1.0:f32 ]];
 
-static sobel_mask3_y = [[ -1.0f, -2.0f, -1.0f ],
-                       [  0.0f,  0.0f,  0.0f ],
-                       [  1.0f,  2.0f,  1.0f ]];
+static sobel_mask3_y = [[ -1.0:f32, -2.0:f32, -1.0:f32 ],
+                       [  0.0:f32,  0.0:f32,  0.0:f32 ],
+                       [  1.0:f32,  2.0:f32,  1.0:f32 ]];
 
-static gauss_mask3 = [[ 0.057118f, 0.124758f, 0.057118f ],
-                      [ 0.124758f, 0.272496f, 0.124758f ],
-                      [ 0.057118f, 0.124758f, 0.057118f ]];
+static gauss_mask3 = [[ 0.057118:f32, 0.124758:f32, 0.057118:f32 ],
+                      [ 0.124758:f32, 0.272496:f32, 0.124758:f32 ],
+                      [ 0.057118:f32, 0.124758:f32, 0.057118:f32 ]];
 
-static threshold = 100000f;
-static markHigh = 255f;
-static markLow  = 0f;
+static threshold = 100000:f32;
+static markHigh = 255:f32;
+static markLow  = 0:f32;
