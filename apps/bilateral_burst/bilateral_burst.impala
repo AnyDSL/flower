@@ -6,44 +6,43 @@ fn @similarity(math: Intrinsics, c_r: f32, xi: f32, x: f32) -> f32 {
     math.expf(-c_r * diff * diff)
 }
 
-fn @bilateral_filter(math: Intrinsics, x: i32, y: i32, acc: Acc, mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
+fn @bilateral_filter[T](math: Intrinsics, x: i32, y: i32, acc: Acc[T], mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
     let mut k = 0:f32;
     let mut p = 0:f32;
 
     for yf in unroll(-2*sigma_d, 2*sigma_d+1) {
         for xf in unroll(-2*sigma_d, 2*sigma_d+1) {
-            let diff = acc.read(x + xf, y + yf) - acc.read(x, y);
+            let diff = bitcast[pixel_t](acc.read(x + xf, y + yf)) - bitcast[pixel_t](acc.read(x, y));
 
             let c = closeness(math, c_d, xf, yf);
-            let s = similarity(math, c_r, acc.read(x + xf, y + yf), acc.read(x, y));
+            let s = similarity(math, c_r, bitcast[pixel_t](acc.read(x + xf, y + yf)), bitcast[pixel_t](acc.read(x, y)));
 
             k += c * s;
-            p += c * s * acc.read(x + xf, y + yf);
+            p += c * s * bitcast[pixel_t](acc.read(x + xf, y + yf));
         }
     }
 
     p / k
 }
 
-fn @bilateral_filter_mask(math: Intrinsics, x: i32, y: i32, acc: Acc, mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
+fn @bilateral_filter_mask[T](math: Intrinsics, x: i32, y: i32, acc: Acc[T], mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
     let mut k = 0:f32;
     let mut p = 0:f32;
 
     for yf in unroll(-2*sigma_d, 2*sigma_d+1) {
         for xf in unroll(-2*sigma_d, 2*sigma_d+1) {
-            let diff = acc.read(x + xf, y + yf) - acc.read(x, y);
+            let diff = bitcast[pixel_t](acc.read(x + xf, y + yf)) - bitcast[pixel_t](acc.read(x, y));
 
             let c = mask.data(xf + 2*sigma_d, yf + 2*sigma_d);
             let s = math.expf(-c_r * diff*diff);
 
             k += c * s;
-            p += c * s * acc.read(x + xf, y + yf);
+            p += c * s * bitcast[pixel_t](acc.read(x + xf, y + yf));
         }
     }
 
     p / k
 }
-
 
 static mut mm_to_str_buf: pipe;
 static mut str_to_mm_buf: pipe;
@@ -63,16 +62,17 @@ fn main() -> i32 {
     let sigma_d = mask.size_x / 4;
     let c_d = 1:f32 / (2:f32 * (sigma_d*sigma_d) as f32);
 
-    let lower = clamp_lower;
-    let upper = clamp_upper;
+    let lower = clamp_lower[pixel_t];
+    let upper = clamp_upper[pixel_t];
     let enable_offset = 0;
 
-    let iteration_fun = iteration;                  // SS
-    //let iteration_fun = iteration_bounds;           // SS + BH
-    //let iteration_fun = iteration_advanced;         // SS + SM
+    let iteration_fun = iteration[pixel_t];                  // SS
+    //let iteration_fun = iteration_bounds[pixxel_t];        // SS + BH
+    //let iteration_fun = iteration_advanced[pixel_t];       // SS + SM
+    let iteration_point = iteration_point[pixel_t];
 
-    //let bilateral_fun = bilateral_filter;
-    let bilateral_fun = bilateral_filter_mask;
+    //let bilateral_fun = bilateral_filter[pixel_t];
+    let bilateral_fun = bilateral_filter_mask[pixel_t];
 
     for benchmark_host(num_host_iter) {
 
@@ -95,8 +95,8 @@ fn main() -> i32 {
         let mut passed = 0;
         let mut rms_err = 0:f32;   // RMS error
         let EPS = 0.02:f32;
-        let arr_acc = get_acc_bh(arr, |idx, val| { bitcast[&mut[f32]](arr.buf.data)(idx) = val }, |idx| bitcast[&[f32]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
-        let out_acc = get_acc   (out, |idx, val| { bitcast[&mut[f32]](out.buf.data)(idx) = val }, |idx| bitcast[&[f32]](out.buf.data)(idx));
+        let arr_acc = get_acc_bh[pixel_t](arr, |idx, val| { bitcast[&mut[f32]](arr.buf.data)(idx) = val }, |idx| bitcast[&[f32]](arr.buf.data)(idx), (Boundary::Unknown, Boundary::Unknown), lower, upper);
+        let out_acc = get_acc[pixel_t](out, |idx, val| { bitcast[&mut[f32]](out.buf.data)(idx) = val }, |idx| bitcast[&[f32]](out.buf.data)(idx));
         for y in range(0, out.height) {
             for x in range(0, out.width) {
                 let ref = bilateral_filter_mask(cpu_intrinsics, x, y, arr_acc, mask, sigma_d, c_d, c_r);

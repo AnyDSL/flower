@@ -61,7 +61,7 @@ fn main() -> i32 {
     let upper = clamp_upper[pixel_t];
     let enable_offset = 0;
 
-    let iteration_fun = iteration[pixel_t];                  // SS
+    let iteration_fun = iteration[pixel_t];           // SS
     //let iteration_fun = iteration_bounds;           // SS + BH
     //let iteration_fun = iteration_advanced;         // SS + SM
 
