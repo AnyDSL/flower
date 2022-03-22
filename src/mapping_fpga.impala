@@ -87,12 +87,12 @@ struct StencilMask{
 fn @iterate1d_border(body: fn(Boundary) -> ()) -> () {
     for row in unroll(0, 3) {
         let boundary = get_boundary(row);
-        @@body(boundary);
+        @body(boundary);
     }
 }
 fn @iterate1d_atborders(body: fn(Boundary) -> ()) -> () {
-    @@body(Boundary::Lower);
-    @@body(Boundary::Upper);
+    @body(Boundary::Lower);
+    @body(Boundary::Upper);
 }
 
 //---------------------- HW pipelining -------------------------------------------
@@ -180,7 +180,7 @@ fn @create_line_buffer_vec1(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 fn @create_line_buffer_vec2(in_s: Mem2D, width: int) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 2 ];
+    let mut value = [ 0 as pixel_t; 2 ];
     let lbuf = reserve_shared[[pixel_t * 2]](width);
 
     fn @read(idx: int) -> pixel_t { value(idx) }
@@ -194,7 +194,7 @@ fn @create_line_buffer_vec2(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 fn @create_line_buffer_vec4(in_s: Mem2D, width: int) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 4 ];
+    let mut value = [ 0 as pixel_t; 4 ];
     let lbuf = reserve_shared[[pixel_t * 4]](width);
 
     fn @read(idx: int) -> pixel_t { value(idx) }
@@ -208,7 +208,7 @@ fn @create_line_buffer_vec4(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 fn @create_line_buffer_vec8(in_s: Mem2D, width: int) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 8 ];
+    let mut value = [ 0 as pixel_t; 8 ];
     let lbuf = reserve_shared[[pixel_t * 8]](width);
 
     fn @read(idx: int) -> pixel_t { value(idx) }
@@ -223,7 +223,7 @@ fn @create_line_buffer_vec8(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 fn @create_line_buffer_vec16(in_s: Mem2D, width: int) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 16 ];
+    let mut value = [ 0 as pixel_t; 16 ];
     let lbuf = reserve_shared[[pixel_t * 16]](width);
 
     fn @read(idx: int) -> pixel_t { value(idx) }
@@ -240,7 +240,7 @@ fn @create_line_buffer_vec16(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 fn @create_line_buffer_vec32(in_s: Mem2D, width: int) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 32 ];
+    let mut value = [ 0 as pixel_t; 32 ];
     let lbuf = reserve_shared[[pixel_t * 32]](width);
 
     fn @read(idx: int) -> pixel_t { value(idx) }
@@ -269,29 +269,29 @@ fn @new_databeat(width: int) -> regs1d {
 fn @concat_regs1d(left: regs1d, roil: Interval1d, right: regs1d, roir: Interval1d) -> regs1d {
     let o = roil.end - roil.start;
     regs1d {
-        write : @|i, val| if i < o { left.write(i + roil.start, val) } else { right.write(i - o + roir.start, val) },
-        read  : @|i|      if i < o  { left.read(i + roil.start) } else  { right.read(i - o + roir.start) },
-        begin : 0,
-        end   : o + (roir.end - roir.start)
+        write = @|i, val| if i < o { left.write(i + roil.start, val) } else { right.write(i - o + roir.start, val) },
+        read  = @|i|      if i < o  { left.read(i + roil.start) } else  { right.read(i - o + roir.start) },
+        begin = 0,
+        end   = o + (roir.end - roir.start)
     }
 }
 
 fn @new_regs1d(begin: int, end: int) -> regs1d {
     if end == begin {
         regs1d {
-            write : @|_, _| (),
-            read  : @|_| undef[pixel_t](),
-            begin : begin,
-            end   : end
+            write = @|_, _| (),
+            read  = @|_| undef[pixel_t](),
+            begin = begin,
+            end   = end
         }
     } else if begin + 1 == end {
         //pe_info("found", begin);
         let mut value = 0 as pixel_t;
         regs1d {
-            write : @|i, v| value = v,
-            read  : @|i| value,
-            begin : begin,
-            end   : end
+            write = @|i, v| value = v,
+            read  = @|i| value,
+            begin = begin,
+            end   = end
         }
     } else {
         //pe_info("begin", begin);
@@ -300,10 +300,10 @@ fn @new_regs1d(begin: int, end: int) -> regs1d {
         let left  = new_regs1d(begin, m);
         let right = new_regs1d(m, end);
         regs1d {
-            write : @|i, v| if i >= m { right.write(i, v) } else { left.write(i, v) },
-            read  : @|i|    if i >= m { right.read(i) } else { left.read(i) },
-            begin : begin,
-            end   : end
+            write = @|i, v| if i >= m { right.write(i, v) } else { left.write(i, v) },
+            read  = @|i|    if i >= m { right.read(i) } else { left.read(i) },
+            begin = begin,
+            end   = end
         }
     }
 }
@@ -313,28 +313,28 @@ fn @new_regs2d(begin: (int, int), end: (int, int)) -> regs2d {
     let (end_x, end_y)     = end;
     if end_y == begin_y {
         regs2d {
-            write : @|_, _, _| (),
-            read  : @|_, _| undef[pixel_t](),
-            begin : begin,
-            end   : end
+            write = @|_, _, _| (),
+            read  = @|_, _| undef[pixel_t](),
+            begin = begin,
+            end   = end
         }
     } else if begin_y + 1 == end_y {
         let row = new_regs1d(begin_x, end_x);
         regs2d {
-            write : @|x, y, v| row.write(x, v),
-            read  : @|x, y|    row.read(x),
-            begin : begin,
-            end   : end
+            write = @|x, y, v| row.write(x, v),
+            read  = @|x, y|    row.read(x),
+            begin = begin,
+            end   = end
         }
     } else {
         let m = (end_y + begin_y) / 2;
         let left  = new_regs2d((begin_x, begin_y), (end_x, m));
         let right = new_regs2d((begin_x, m),       (end_x, end_y));
         regs2d {
-            write : @|x, y, v| if y >= m { right.write(x, y, v) } else { left.write(x, y, v) },
-            read  : @|x, y|    if y >= m { right.read(x, y) } else { left.read(x, y) },
-            begin : begin,
-            end   : end
+            write = @|x, y, v| if y >= m { right.write(x, y, v) } else { left.write(x, y, v) },
+            read  = @|x, y|    if y >= m { right.read(x, y) } else { left.read(x, y) },
+            begin = begin,
+            end   = end
         }
     }
 }
@@ -348,34 +348,34 @@ fn @new_line_buffers(in_s: Mem2D, width: int, height: int) -> Win2D {
     let stride = (width - 1) / in_s.pFactor + 1;
     if height == 0 {
         Win2D {
-            read   : @|x, y| in_s.read(x),
-            write  : @|_, _, _| (),
-            update : @|_, _| (),
-            height : height,
-            width  : width,
-            stride : stride,
-            pFactor: in_s.pFactor
+            read   = @|x, y| in_s.read(x),
+            write  = @|_, _, _| (),
+            update = @|_, _| (),
+            height = height,
+            width  = width,
+            stride = stride,
+            pFactor= in_s.pFactor
         }
     } else {
         let shared_s = create_line_buffer(in_s, width);
         let sub_lbuf = new_line_buffers(shared_s, width, height - 1);
         Win2D {
-            read   : @|x, y| {
+            read   = @|x, y| {
                 if y == height - 1 {
                     in_s.read(x)
                 } else {
                     sub_lbuf.read(x, y)
                 }
             },
-            write  : @|_, _, _| (),
-            update : @|col, row| {
+            write  = @|_, _, _| (),
+            update = @|col, row| {
                 shared_s.update($col);
                 sub_lbuf.update($col, 0)
             },
-            height : height,
-            width  : width,
-            stride : stride,
-            pFactor: in_s.pFactor
+            height = height,
+            width  = width,
+            stride = stride,
+            pFactor= in_s.pFactor
         }
     }
 }
@@ -400,14 +400,14 @@ fn @new_sliding_win(lbufs: Win2D, stride: int, height: int) -> Win2D {
         }
     }
     Win2D {
-        read   : swin.read,
-        write  : @|_, _, _| (),
-        update : @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
+        read   = swin.read,
+        write  = @|_, _, _| (),
+        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
                                          shift() },
-        height : height,
-        width  : stride,
-        stride : stride,
-        pFactor: pFactor
+        height = height,
+        width  = stride,
+        stride = stride,
+        pFactor= pFactor
     }
 }
 
@@ -435,14 +435,14 @@ fn @new_sliding_win_bh(lbufs: Win2D, height: int, stride: int, width : int, row_
     }
 
     Win2D {
-        read   : swin.read,
-        write  : @|_, _, _| (),
-        update : @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
+        read   = swin.read,
+        write  = @|_, _, _| (),
+        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
                                          shift($col_ridx, $row_ridx) },
-        height : height,
-        width  : width, // optimum
-        stride : stride,
-        pFactor: pFactor
+        height = height,
+        width  = width, // optimum
+        stride = stride,
+        pFactor= pFactor
     }
 }
 
@@ -479,13 +479,13 @@ fn @get_crsn_coord(coord: int, pFactor: int) -> int {
 }
 
 fn @get_crsn_interv(interv: Interval1d, pFactor: int) -> Interval1d {
-    Interval1d { start: get_crsn_coord(interv.start, pFactor),
-                   end: get_crsn_coord(interv.end, pFactor) }
+    Interval1d { start = get_crsn_coord(interv.start, pFactor),
+                   end = get_crsn_coord(interv.end, pFactor) }
 }
 
 fn @get_crsn_roi(roi: RoI1d, pFactor: int) -> RoI1d {
-    RoI1d{ o_x: get_crsn_coord(roi.o_x, pFactor),
-         width: get_crsn_coord(roi.width, pFactor) }
+    RoI1d{ o_x = get_crsn_coord(roi.o_x, pFactor),
+         width = get_crsn_coord(roi.width, pFactor) }
 }
 
 fn @get_rel_coord(coord: int, interv: Interval1d) -> int {
@@ -508,18 +508,18 @@ fn @bh_type0(imx: int, boundary: Boundary, loop_schedule: LoopCircular, win_boun
 
     fn @for_the_bound(boundary: Boundary, lower_high: int, upper_low: int) -> () {
         for xw in unroll(lower_w, upper_w) {
-            @@brdr_assigns(xw, boundary, lower_high, upper_low);
+            @brdr_assigns(xw, boundary, lower_high, upper_low);
         };
     };
 
-    @@for_the_bound(Boundary::Center, 0, 0);
+    @for_the_bound(Boundary::Center, 0, 0);
 
     match boundary {
         Boundary::Lower => {
             for x in unroll_step(0, radius, pFactor) {
                 let lower_high = upper_w - x;
                 if imx == lower_arr + x / pFactor {
-                    @@for_the_bound(boundary, lower_high, 0);
+                    @for_the_bound(boundary, lower_high, 0);
                 }
             }
         },
@@ -527,7 +527,7 @@ fn @bh_type0(imx: int, boundary: Boundary, loop_schedule: LoopCircular, win_boun
             for x in unroll_step(0, radius, pFactor) {
                 let upper_low = lower_w + x;
                 if imx == get_rel_coord(upper_arr - 1 - x / pFactor, interv) {
-                    @@for_the_bound(boundary, 0, upper_low);
+                    @for_the_bound(boundary, 0, upper_low);
                 }
             }
         },
@@ -576,8 +576,8 @@ fn @new_type0_col_selection(swin: Win2D, loop_schedule: LoopCircular, get_bounds
     }
 
     col_selection {
-        get_read_fn : @|v| { @|x, y| read_fun(x + v, y) },
-        update      : update
+        get_read_fn = @|v| { @|x, y| read_fun(x + v, y) },
+        update      = update
     }
 }
 
@@ -586,8 +586,8 @@ fn @get_stencil_mask(mask: Mask) -> StencilMask {
     let radius_y = mask.size_y >> 1;
     let radius_x = mask.size_x >> 1;
     StencilMask {
-        lower_y : radius_y, upper_y : radius_y, size_y : mask.size_y,
-        lower_x : radius_x, upper_x : radius_x, size_x : mask.size_x
+        lower_y = radius_y, upper_y = radius_y, size_y = mask.size_y,
+        lower_x = radius_x, upper_x = radius_x, size_x = mask.size_x
     }
 }
 
@@ -600,9 +600,9 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
 
     // border handling row selection
     let input_row_schedule = LoopCircular {
-        interv: Interval1d {start: mask.upper_y,  end: in_s.height + mask.upper_y + 1}, // loop index
-        roi  : RoI1d       {  o_x: mask.upper_y, width: in_s.height},                   // image region
-        pFactor: 1
+        interv = Interval1d {start = mask.upper_y,  end = in_s.height + mask.upper_y + 1}, // loop index
+        roi  = RoI1d       {  o_x = mask.upper_y, width = in_s.height},                   // image region
+        pFactor = 1
     };
     let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
     let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
@@ -613,9 +613,9 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
 
     // border handling col selection
     let input_col_schedule = LoopCircular {
-        interv: Interval1d { start: 0,           end: in_s.stride }, // loop index
-        roi  :      RoI1d { o_x: mask.upper_x, width: in_s.width },  // image region
-        pFactor: in_s.pFactor
+        interv = Interval1d { start = 0,           end = in_s.stride }, // loop index
+        roi  =      RoI1d { o_x = mask.upper_x, width = in_s.width },  // image region
+        pFactor = in_s.pFactor
     };
     let right_padding = in_s.stride - in_s.width;
     let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
@@ -626,9 +626,9 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
         col_sel_type0.update($col_ridx);
 
         for v in unroll(0, pFactor) {
-            let win_acc = Acc { read : col_sel_type0.get_read_fn(v), write : @|x, y, v| {} };
-            let out_acc = Acc { read : |x, y| 0 as pixel_t,          write : @|x, y, data| out_s.write(v, data) };
-            @@body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            let win_acc = Acc { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
             //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
         }
     };
@@ -639,16 +639,16 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
     let mut col_ridx = 0;
     let mut row_ridx = 0; // border handling
     Hardware {
-        at_read   : |ridx| { in_s.update($ridx); },
-        at_always : |ridx| { process($col_ridx, $row_ridx); },
-        at_write  : |ridx| { out_s.update($ridx - initial_delay); },
-        at_update : |ridx| {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, $row_ridx); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
             col_ridx++;
             if col_ridx == crsn_stride { col_ridx = 0; row_ridx++;}
         },
-        initial_delay : initial_delay,
-        read_time : process_time,
-        life_time : life_time
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
     }
 }
 
@@ -659,9 +659,9 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
 
     // Border_handling
     let input_row_schedule = LoopCircular {
-        interv: Interval1d {start: mask.lower_y,  end: in_s.height + mask.lower_y + 1}, // loop index
-        roi  : RoI1d      {  o_x: mask.lower_y, width: in_s.height},                // image region
-        pFactor: 1
+        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+        pFactor = 1
     };
     let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
     let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
@@ -677,28 +677,28 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
 
     let right_padding = in_s.stride - in_s.width;
     let col_sel_type0 = {
-        let interv = Interval1d { start: 0, end: in_s.stride };
+        let interv = Interval1d { start = 0, end = in_s.stride };
         if pack_offset == pFactor {
             let input_col_schedule = LoopCircular {
-                interv: interv, pFactor: in_s.pFactor,
-                roi: RoI1d { o_x: mask.lower_x, width: in_s.width }};
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = mask.lower_x, width = in_s.width }};
             let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
             new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper)
         } else {
             let input_col_schedule1 = LoopCircular {
-                interv: interv, pFactor: in_s.pFactor,
-                roi: RoI1d { o_x: round_down(mask.lower_x, pFactor), width: in_s.width + pFactor}};
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width + pFactor}};
             let input_col_schedule2 = LoopCircular {
-                interv: interv, pFactor: in_s.pFactor,
-                roi: RoI1d { o_x: round_down(mask.lower_x, pFactor), width: in_s.width}};
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width}};
             let upper_low  = pack_offset + mask.upper_x;
             let win_upper_col_bounds = new_bounds(0, 0, upper_low - right_padding, upper_low + mask.upper_x);
             let win_lower_col_bounds = new_bounds(upper_low - mask.upper_x, upper_low, swin_width - right_padding, swin_width);
             let upper = new_type0_col_selection(swin, input_col_schedule1, win_upper_col_bounds, bh_lower, bh_upper);
             let lower = new_type0_col_selection(swin, input_col_schedule2, win_lower_col_bounds, bh_lower, bh_upper);
            col_selection {
-               get_read_fn : @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
-               update      : @|idx| { upper.update(idx); lower.update(idx); }
+               get_read_fn = @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
+               update      = @|idx| { upper.update(idx); lower.update(idx); }
            }
         }
     };
@@ -721,9 +721,9 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
         col_sel_type0.update($col_ridx);
 
         for v in unroll(0, pFactor) {
-            let win_acc = Acc { read : col_sel_type0.get_read_fn(v), write : @|x, y, v| {} };
-            let out_acc = Acc { read : @|x, y| 0 as pixel_t, write : pack(v) };
-            @@body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            let win_acc = Acc { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+            let out_acc = Acc { read = @|x, y| 0 as pixel_t, write = pack(v) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
             //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
         }
     }
@@ -737,16 +737,16 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
     let mut row_ridx = 0; // border handling
 
     Hardware {
-        at_read   : |ridx| { in_s.update($ridx); },
-        at_always : |ridx| { process($col_ridx, $row_ridx); },
-        at_write  : |ridx| { out_s.update($ridx - initial_delay); },
-        at_update : |ridx| {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, $row_ridx); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
             col_ridx++;
             if col_ridx == crsn_stride { col_ridx = 0; row_ridx++; }
         },
-        initial_delay : initial_delay,
-        read_time : process_time,
-        life_time : life_time
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
     }
 }
 
@@ -765,9 +765,9 @@ fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D,
         swin.update($col_ridx, $row_ridx);
 
         for v in unroll(0, pFactor) {
-            let win_acc = Acc { read : @|x, y| swin.read(x + v, y), write : @|x, y, v| {} };
-            let out_acc = Acc { read : |x, y| 0 as pixel_t,          write : @|x, y, data| out_s.write(v, data) };
-            @@body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
             //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
         }
     };
@@ -777,16 +777,16 @@ fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D,
     let life_time     = initial_delay + process_time;
     //let mut col_ridx = 0;
     Hardware {
-        at_read   : |ridx| { in_s.update($ridx); },
-        at_always : |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
-        at_write  : |ridx| { out_s.update($ridx - initial_delay); },
-        at_update : |ridx| {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
             /*col_ridx++;
             if col_ridx == crsn_stride { col_ridx = 0; }*/
         },
-        initial_delay : initial_delay,
-        read_time : process_time,
-        life_time : life_time
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
     }
 }
 
@@ -798,9 +798,9 @@ fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, 
 
     // Border_handling
     let input_row_schedule = LoopCircular {
-        interv: Interval1d {start: mask.lower_y,  end: in_s.height + mask.lower_y + 1}, // loop index
-        roi  : RoI1d      {  o_x: mask.lower_y, width: in_s.height},                // image region
-        pFactor: 1
+        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+        pFactor = 1
     };
     let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
     let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
@@ -831,9 +831,9 @@ fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, 
         swin.update($col_ridx, $row_ridx);
 
         for v in unroll(0, pFactor) {
-            let win_acc = Acc { read : @|x, y| swin.read(x + v, y), write : @|x, y, v| {} };
-            let out_acc = Acc { read : @|x, y| 0 as pixel_t, write : pack(v) };
-            @@body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+            let out_acc = Acc { read = @|x, y| 0 as pixel_t, write = pack(v) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
             //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
         }
     }
@@ -845,16 +845,16 @@ fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, 
 
     let mut col_ridx = 0;
     Hardware {
-        at_read   : |ridx| { in_s.update($ridx); },
-        at_always : |ridx| { process($col_ridx, 0); },
-        at_write  : |ridx| { out_s.update($ridx - initial_delay); },
-        at_update : |ridx| {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, 0); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
             col_ridx++;
             if col_ridx == crsn_stride { col_ridx = 0;}
         },
-        initial_delay : initial_delay,
-        read_time : process_time,
-        life_time : life_time
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
     }
 }
 
@@ -934,18 +934,18 @@ fn @iteration_point(math: Intrinsics, out: Img, arr: Img, body: fn(Intrinsics, i
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| { in_s.update($ridx); },
-                at_write  : |ridx| { out_s.update($ridx); },
-                at_always : |ridx| {
+                at_read   = |ridx| { in_s.update($ridx); },
+                at_write  = |ridx| { out_s.update($ridx); },
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
-                        let out_acc = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out_s.write(v, data) };
-                        @@body(math, 0, 0, out_acc, in_s.read(v));
+                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        @body(math, 0, 0, out_acc, in_s.read(v));
                     }
                 },
-                at_update : |_| (),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_| (),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -968,23 +968,23 @@ fn @iteration_point2(math: Intrinsics, out: Img, arr0: Img, arr1: Img, body: fn(
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| {
+                at_read   = |ridx| {
                     in0_s.update($ridx);
                     in1_s.update($ridx);
                 },
-                at_write  : |ridx| { out_s.update($ridx); },
-                at_always : |ridx| {
+                at_write  = |ridx| { out_s.update($ridx); },
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
                         let in0 = in0_s.read(v);
                         let in1 = in1_s.read(v);
-                        let out_acc = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out_s.write(v, data) };
-                        @@body(math, 0, 0, out_acc, in0, in1);
+                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        @body(math, 0, 0, out_acc, in0, in1);
                     }
                 },
-                at_update : |_| (),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_| (),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -1009,25 +1009,25 @@ fn @iteration_point3(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| {
+                at_read   = |ridx| {
                     in0_s.update($ridx);
                     in1_s.update($ridx);
                     in2_s.update($ridx);
                 },
-                at_write  : |ridx| { out_s.update($ridx); },
-                at_always : |ridx| {
+                at_write  = |ridx| { out_s.update($ridx); },
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
                         let in0 = in0_s.read(v);
                         let in1 = in1_s.read(v);
                         let in2 = in2_s.read(v);
-                        let out_acc = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out_s.write(v, data) };
-                        @@body(math, 0, 0, out_acc, in0, in1, in2);
+                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        @body(math, 0, 0, out_acc, in0, in1, in2);
                     }
                 },
-                at_update : |_|(),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_|(),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -1054,27 +1054,27 @@ fn @iteration_point4(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| {
+                at_read   = |ridx| {
                     in0_s.update($ridx);
                     in1_s.update($ridx);
                     in2_s.update($ridx);
                     in3_s.update($ridx);
                 },
-                at_write  : |ridx| { out_s.update($ridx); },
-                at_always : |ridx| {
+                at_write  = |ridx| { out_s.update($ridx); },
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
                         let in0 = in0_s.read(v);
                         let in1 = in1_s.read(v);
                         let in2 = in2_s.read(v);
                         let in3 = in3_s.read(v);
-                        let out_acc = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out_s.write(v, data) };
-                        @@body(math, 0, 0, out_acc, in0, in1, in2, in3);
+                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        @body(math, 0, 0, out_acc, in0, in1, in2, in3);
                     }
                 },
-                at_update : |_|(),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_|(),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -1103,29 +1103,29 @@ fn @iteration_point5(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| {
+                at_read   = |ridx| {
                     in0_s.update($ridx);
                     in1_s.update($ridx);
                     in2_s.update($ridx);
                     in3_s.update($ridx);
                     in4_s.update($ridx);
                 },
-                at_write  : |ridx| { out_s.update($ridx); },
-                at_always : |ridx| {
+                at_write  = |ridx| { out_s.update($ridx); },
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
                         let in0 = in0_s.read(v);
                         let in1 = in1_s.read(v);
                         let in2 = in2_s.read(v);
                         let in3 = in3_s.read(v);
                         let in4 = in4_s.read(v);
-                        let out_acc = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out_s.write(v, data) };
-                        @@body(math, 0, 0, out_acc, in0, in1, in2, in3, in4);
+                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        @body(math, 0, 0, out_acc, in0, in1, in2, in3, in4);
                     }
                 },
-                at_update : |_|(),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_|(),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -1148,25 +1148,25 @@ fn @iteration_point1to2(math: Intrinsics, out0: Img, out1: Img, arr: Img, body: 
 
             let life_time  = out0_s.stride * out0_s.height / pFactor;
             let my_hardware = Hardware {
-                at_read   : |ridx| {
+                at_read   = |ridx| {
                     in_s.update($ridx);
                 },
-                at_write  : |ridx| {
+                at_write  = |ridx| {
                     out0_s.update($ridx);
                     out1_s.update($ridx);
                 },
-                at_always : |ridx| {
+                at_always = |ridx| {
                     for v in unroll(0, pFactor) {
                         let din = in_s.read(v);
-                        let out_acc0 = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out0_s.write(v, data) };
-                        let out_acc1 = Acc { read : |x, y| 0 as pixel_t, write : @|x, y, data| out1_s.write(v, data) };
-                        @@body(math, 0, 0, din, out_acc0, out_acc1);
+                        let out_acc0 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out0_s.write(v, data) };
+                        let out_acc1 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out1_s.write(v, data) };
+                        @body(math, 0, 0, din, out_acc0, out_acc1);
                     }
                 },
-                at_update : |_| (),
-                initial_delay : 0,
-                read_time : life_time,
-                life_time : life_time
+                at_update = |_| (),
+                initial_delay = 0,
+                read_time = life_time,
+                life_time = life_time
             };
             pipeline2d(my_hardware);
         }
@@ -1397,14 +1397,14 @@ fn @reduce_balanced(prev: regs1d, block: int, body: fn(regs1d, int, int) -> pixe
     let size = (prev.end - prev.begin);
 
     if (size < block + 1) {
-        @@body(prev, prev.begin, prev.end)
+        @body(prev, prev.begin, prev.end)
     } else {
         let offset = (size % block);
         let size_next = size / block + offset;
-        let next = concat_regs1d(prev, Interval1d{start: 0, end: offset}, new_regs1d(offset, size_next), Interval1d{start: offset, end: size_next});
+        let next = concat_regs1d(prev, Interval1d{start = 0, end = offset}, new_regs1d(offset, size_next), Interval1d{start = offset, end = size_next});
 
         for i in unroll_step(offset, size, block) {
-            next.write(i / block + offset, @@body(prev, i, i + block));
+            next.write(i / block + offset, @body(prev, i, i + block));
         }
 
         reduce_balanced(next, block, body)
@@ -1416,14 +1416,14 @@ fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, bod
     let arr_dev = get_device_copy(arr);
     let out_dev = get_device_copy(out);
 
-    let block = 2i;
+    let block = 2:i32;
     let pFactor = get_vector_length();
 
     // reduce two inputs with the body function
     fn @reduce_block(data: regs1d, start: int, end : int) -> pixel_t {
         if (end - start) > 1 {
-            let mut result = @@body(math, data.read(start), data.read(start + 1));
-            for i in unroll(start + 2, end) { result = @@body(math, result, data.read(i)); }
+            let mut result = @body(math, data.read(start), data.read(start + 1));
+            for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
             result
         } else if (end - start) == 1 {
             data.read(start)
@@ -1466,19 +1466,19 @@ fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, bod
 
             let mut redval = neutral;
             let my_hardware = Hardware {
-                at_read   : |ridx| { in_m.update($ridx); },
-                at_always : |ridx| {
-                    let prev = concat_regs1d(regs1d { write: in_m.write, read: in_m.read, begin: 0, end: pFactor }, Interval1d{start: 0, end: pFactor},
-                                             regs1d { write: |_, _|(), read: |_| { redval }, begin: 0, end: 1 }, Interval1d{start: 0, end: 1});
+                at_read   = |ridx| { in_m.update($ridx); },
+                at_always = |ridx| {
+                    let prev = concat_regs1d(regs1d { write = in_m.write, read = in_m.read, begin = 0, end = pFactor }, Interval1d{start = 0, end = pFactor},
+                                             regs1d { write = |_, _|(), read = |_| { redval }, begin = 0, end = 1 }, Interval1d{start = 0, end = 1});
                     border_handling(prev);
                     redval = reduce_balanced(prev, block, reduce_block);
                     //redval = reduce_block(prev, prev.begin, prev.end); // naive
                     },
-                at_write  : |_| (),
-                at_update : col_update, 
-                initial_delay : 0,
-                read_time : crsn_stride * in_m.height,
-                life_time : crsn_stride * in_m.height
+                at_write  = |_| (),
+                at_update = col_update,
+                initial_delay = 0,
+                read_time = crsn_stride * in_m.height,
+                life_time = crsn_stride * in_m.height
             };
             pipeline2d(my_hardware);
             out_m.write(0, redval);
