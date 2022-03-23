@@ -2,58 +2,58 @@ static coarsening_policy = FetchAndCalc; // FetchAndCalc, FetchAndCalc_nobh, Cal
 
 // ---------------------------- types ------------------------------------------
 // border handling
-type Bounds = (int, int);
+type Bounds = (i32, i32);
 type get_bounds_fun_type = fn(Boundary) -> Bounds;
-type pixel_read_type  = fn(int, int, Boundary, Bounds, fn(int) -> pixel_t) -> pixel_t;
-type row_sel_fun_type = fn(int, brdr_assigns_type) -> ();
-type crsn_type = fn(Intrinsics, Mem2D, Mem2D, int, Mask, int, BoundaryFn, BoundaryFn, StencilFn) -> coarsening_type;
-type brdr_assigns_type = fn(int, Boundary, int, int) -> ();
+type pixel_read_type  = fn(i32, i32, Boundary, Bounds, fn(i32) -> pixel_t) -> pixel_t;
+type row_sel_fun_type = fn(i32, brdr_assigns_type) -> ();
+type crsn_type = fn(Intrinsics, Mem2D, Mem2D, i32, Mask, i32, BoundaryFn, BoundaryFn, StencilFn) -> coarsening_type;
+type brdr_assigns_type = fn(i32, Boundary, i32, i32) -> ();
 // ---------------------------- structs ----------------------------------------
 // memory access
 struct Mem2D {
-    read    : fn(int) -> pixel_t,
-    write   : fn(int, pixel_t) -> (),
-    update  : fn(int) -> (),
-    height  : int,
-    width   : int,
-    stride  : int,
-    pFactor : int
+    read    : fn(i32) -> pixel_t,
+    write   : fn(i32, pixel_t) -> (),
+    update  : fn(i32) -> (),
+    height  : i32,
+    width   : i32,
+    stride  : i32,
+    pFactor : i32
 }
 
 // hardware type for pipeline2d
 struct Hardware {
-    at_read   : fn(int) -> (),
-    at_always : fn(int) -> (),
-    at_write  : fn(int) -> (),
-    at_update : fn(int) -> (),
-    initial_delay : int,
-    read_time : int,
-    life_time : int
+    at_read   : fn(i32) -> (),
+    at_always : fn(i32) -> (),
+    at_write  : fn(i32) -> (),
+    at_update : fn(i32) -> (),
+    initial_delay : i32,
+    read_time : i32,
+    life_time : i32
 }
 
 // register arrays
 struct regs1d {
-    read  : fn(int) -> pixel_t,
-    write : fn(int, pixel_t) -> (),
-    begin : int,
-    end   : int
+    read  : fn(i32) -> pixel_t,
+    write : fn(i32, pixel_t) -> (),
+    begin : i32,
+    end   : i32
 }
 struct regs2d {
-    read  : fn(int, int) -> pixel_t,
-    write : fn(int, int, pixel_t) -> (),
-    begin : (int, int),
-    end   : (int, int)
+    read  : fn(i32, i32) -> pixel_t,
+    write : fn(i32, i32, pixel_t) -> (),
+    begin : (i32, i32),
+    end   : (i32, i32)
 }
 
 // on-chip memory
 struct Win2D {
-    read   : fn(int, int) -> pixel_t,
-    write  : fn(int, int, pixel_t) -> (),
-    update : fn(int, int) -> (),
-    height  : int,
-    width   : int,
-    stride  : int,
-    pFactor : int
+    read   : fn(i32, i32) -> pixel_t,
+    write  : fn(i32, i32, pixel_t) -> (),
+    update : fn(i32, i32) -> (),
+    height  : i32,
+    width   : i32,
+    stride  : i32,
+    pFactor : i32
 }
 
 // border handling
@@ -62,11 +62,11 @@ struct RoI1d {
     width : i32,
 }
 struct col_selection {
-    get_read_fn : fn(int) -> fn(int, int) -> pixel_t,
-    update      : fn(int) -> ()
+    get_read_fn : fn(i32) -> fn(i32, i32) -> pixel_t,
+    update      : fn(i32) -> ()
 }
 struct coarsening_type {
-    process : fn(int, int) -> ()
+    process : fn(i32, i32) -> ()
 }
 struct Interval1d {
     start : i32,
@@ -79,8 +79,8 @@ struct LoopCircular {
 }
 
 struct StencilMask{
-    lower_y : int, upper_y : int, size_y  : int,
-    lower_x : int, upper_x : int, size_x  : int
+    lower_y : i32, upper_y : i32, size_y  : i32,
+    lower_x : i32, upper_x : i32, size_x  : i32
 }
 
 // ------------------------------ loops ----------------------------------------
@@ -153,7 +153,7 @@ fn @get_device_sync2(img0: Img, img1: Img) -> fn() -> () {
 
 
 // -------------------------  line buffers --------------------------------------
-fn @create_line_buffer(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer(in_s: Mem2D, width: i32) -> Mem2D {
     match in_s.pFactor {
          1 => create_line_buffer_vec1 (in_s, width),
          2 => create_line_buffer_vec2 (in_s, width),
@@ -166,12 +166,12 @@ fn @create_line_buffer(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 // shared
-fn @create_line_buffer_vec1(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec1(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = 0 as pixel_t;
     let lbuf = reserve_shared[pixel_t](width);
 
-    fn @read(idx: int) -> pixel_t { value }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         lbuf(col) = in_s.read(0);
     }
@@ -179,12 +179,12 @@ fn @create_line_buffer_vec1(in_s: Mem2D, width: int) -> Mem2D {
     create_Mem2D_read(width, 1, 1, shift, read)
 }
 
-fn @create_line_buffer_vec2(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec2(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = [ 0 as pixel_t; 2 ];
     let lbuf = reserve_shared[[pixel_t * 2]](width);
 
-    fn @read(idx: int) -> pixel_t { value(idx) }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1)];
         lbuf(col) = dlbin;
@@ -193,12 +193,12 @@ fn @create_line_buffer_vec2(in_s: Mem2D, width: int) -> Mem2D {
     create_Mem2D_read(width, 1, 2, shift, read)
 }
 
-fn @create_line_buffer_vec4(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec4(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = [ 0 as pixel_t; 4 ];
     let lbuf = reserve_shared[[pixel_t * 4]](width);
 
-    fn @read(idx: int) -> pixel_t { value(idx) }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3)];
         lbuf(col) = dlbin;
@@ -207,12 +207,12 @@ fn @create_line_buffer_vec4(in_s: Mem2D, width: int) -> Mem2D {
     create_Mem2D_read(width, 1, 4, shift, read)
 }
 
-fn @create_line_buffer_vec8(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec8(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = [ 0 as pixel_t; 8 ];
     let lbuf = reserve_shared[[pixel_t * 8]](width);
 
-    fn @read(idx: int) -> pixel_t { value(idx) }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3),
                      in_s.read(4), in_s.read(5), in_s.read(6), in_s.read(7)];
@@ -222,12 +222,12 @@ fn @create_line_buffer_vec8(in_s: Mem2D, width: int) -> Mem2D {
     create_Mem2D_read(width, 1, 8, shift, read)
 }
 
-fn @create_line_buffer_vec16(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec16(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = [ 0 as pixel_t; 16 ];
     let lbuf = reserve_shared[[pixel_t * 16]](width);
 
-    fn @read(idx: int) -> pixel_t { value(idx) }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3),
                      in_s.read(4), in_s.read(5), in_s.read(6), in_s.read(7),
@@ -239,12 +239,12 @@ fn @create_line_buffer_vec16(in_s: Mem2D, width: int) -> Mem2D {
     create_Mem2D_read(width, 1, 16, shift, read)
 }
 
-fn @create_line_buffer_vec32(in_s: Mem2D, width: int) -> Mem2D {
+fn @create_line_buffer_vec32(in_s: Mem2D, width: i32) -> Mem2D {
     let mut value = [ 0 as pixel_t; 32 ];
     let lbuf = reserve_shared[[pixel_t * 32]](width);
 
-    fn @read(idx: int) -> pixel_t { value(idx) }
-    fn @shift(col: int) -> () {
+    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0),  in_s.read(1),  in_s.read(2),  in_s.read(3),
                      in_s.read(4),  in_s.read(5),  in_s.read(6),  in_s.read(7),
@@ -261,7 +261,7 @@ fn @create_line_buffer_vec32(in_s: Mem2D, width: int) -> Mem2D {
 }
 
 // -------------------------- Array of Registers -------------------------------
-fn @new_databeat(width: int) -> regs1d {
+fn @new_databeat(width: i32) -> regs1d {
     new_regs1d(0, width)
 }
 
@@ -276,7 +276,7 @@ fn @concat_regs1d(left: regs1d, roil: Interval1d, right: regs1d, roir: Interval1
     }
 }
 
-fn @new_regs1d(begin: int, end: int) -> regs1d {
+fn @new_regs1d(begin: i32, end: i32) -> regs1d {
     if end == begin {
         regs1d {
             write = @|_, _| (),
@@ -308,7 +308,7 @@ fn @new_regs1d(begin: int, end: int) -> regs1d {
     }
 }
 
-fn @new_regs2d(begin: (int, int), end: (int, int)) -> regs2d {
+fn @new_regs2d(begin: (i32, i32), end: (i32, i32)) -> regs2d {
     let (begin_x, begin_y) = begin;
     let (end_x, end_y)     = end;
     if end_y == begin_y {
@@ -344,7 +344,7 @@ fn @new_regs2d(begin: (int, int), end: (int, int)) -> regs2d {
 // ------------------------ Stencil Codes ------------------------------------
 // ---------------------------------------------------------------------------
 //  ---- Instances of On Chip Memory: Line Buffers and Sliding Window  --------
-fn @new_line_buffers(in_s: Mem2D, width: int, height: int) -> Win2D {
+fn @new_line_buffers(in_s: Mem2D, width: i32, height: i32) -> Win2D {
     let stride = (width - 1) / in_s.pFactor + 1;
     if height == 0 {
         Win2D {
@@ -380,7 +380,7 @@ fn @new_line_buffers(in_s: Mem2D, width: int, height: int) -> Win2D {
     }
 }
 
-fn @new_sliding_win(lbufs: Win2D, stride: int, height: int) -> Win2D {
+fn @new_sliding_win(lbufs: Win2D, stride: i32, height: i32) -> Win2D {
     let swin = new_regs2d((0, 0), (stride, height));
     let pFactor = lbufs.pFactor;
 
@@ -413,19 +413,19 @@ fn @new_sliding_win(lbufs: Win2D, stride: int, height: int) -> Win2D {
 
 // sliding window with row selection
 // todo: reduce the parameter list
-fn @new_sliding_win_bh(lbufs: Win2D, height: int, stride: int, width : int, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Win2D {
+fn @new_sliding_win_bh(lbufs: Win2D, height: i32, stride: i32, width : i32, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Win2D {
     let swin = new_regs2d((0, 0), (stride, height));
     let pFactor = lbufs.pFactor;
 
-    fn @brdr_assigns(yw: int, boundary: Boundary, lower_high: int, upper_low: int) -> () {
+    fn @brdr_assigns(yw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
         for xw in unroll(0, pFactor) {
-            fn @read_fun(i: int) -> pixel_t { lbufs.read(xw, i) };
+            fn @read_fun(i: i32) -> pixel_t { lbufs.read(xw, i) };
             let pix_bh = read_pixel_bh(yw, read_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
             swin.write(xw + stride - pFactor, yw, pix_bh)
         }
     }
 
-    fn @shift(col_ridx: int, row_ridx: int) -> () {
+    fn @shift(col_ridx: i32, row_ridx: i32) -> () {
         for j in unroll(0, height) {
             for i in unroll(0, stride - pFactor) {
                 swin.write(i, j, swin.read(i + pFactor, j));
@@ -454,12 +454,12 @@ fn @new_bounds(lower: i32, lower_bh_pixels: i32, upper_bh_pixels: i32, upper: i3
             Boundary::Lower  => (lower, lower_bh_pixels),
             Boundary::Center => (lower_bh_pixels, upper_bh_pixels),
             Boundary::Upper  => (upper_bh_pixels, upper),
-            _                => undef[(int, int)]()
+            _                => undef[(i32, i32)]()
         }
     }
 }
 
-fn @read_pixel_bh(xw: int, read: fn(int) -> pixel_t, boundary: Boundary, lower_high: int, upper_low: int, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> pixel_t {
+fn @read_pixel_bh(xw: i32, read: fn(i32) -> pixel_t, boundary: Boundary, lower_high: i32, upper_low: i32, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> pixel_t {
         let mode_x = match boundary {
             Boundary::Lower   => bh_lower(xw, lower_high, 0),
             Boundary::Center  => BoundaryMode::Index(xw),
@@ -474,27 +474,27 @@ fn @read_pixel_bh(xw: int, read: fn(int) -> pixel_t, boundary: Boundary, lower_h
         }
 }
 
-fn @get_crsn_coord(coord: int, pFactor: int) -> int {
+fn @get_crsn_coord(coord: i32, pFactor: i32) -> i32 {
     round_up(coord, pFactor) / pFactor
 }
 
-fn @get_crsn_interv(interv: Interval1d, pFactor: int) -> Interval1d {
+fn @get_crsn_interv(interv: Interval1d, pFactor: i32) -> Interval1d {
     Interval1d { start = get_crsn_coord(interv.start, pFactor),
                    end = get_crsn_coord(interv.end, pFactor) }
 }
 
-fn @get_crsn_roi(roi: RoI1d, pFactor: int) -> RoI1d {
+fn @get_crsn_roi(roi: RoI1d, pFactor: i32) -> RoI1d {
     RoI1d{ o_x = get_crsn_coord(roi.o_x, pFactor),
          width = get_crsn_coord(roi.width, pFactor) }
 }
 
-fn @get_rel_coord(coord: int, interv: Interval1d) -> int {
+fn @get_rel_coord(coord: i32, interv: Interval1d) -> i32 {
              if coord > interv.end-1 { (coord % interv.end) + interv.start }
         else if coord < interv.start { (coord + interv.end - interv.start) % interv.end } // (coord - interv.start) % interv.end }
         else { coord }
 }
 
-fn @bh_type0(imx: int, boundary: Boundary, loop_schedule: LoopCircular, win_bounds: get_bounds_fun_type, brdr_assigns: brdr_assigns_type) -> () {
+fn @bh_type0(imx: i32, boundary: Boundary, loop_schedule: LoopCircular, win_bounds: get_bounds_fun_type, brdr_assigns: brdr_assigns_type) -> () {
     // coarsening
     let pFactor = loop_schedule.pFactor;
     let interv  = get_crsn_interv(loop_schedule.interv, pFactor);
@@ -506,7 +506,7 @@ fn @bh_type0(imx: int, boundary: Boundary, loop_schedule: LoopCircular, win_boun
     let (lower_w, upper_w) = win_bounds(boundary);
     let radius = upper_w - lower_w;
 
-    fn @for_the_bound(boundary: Boundary, lower_high: int, upper_low: int) -> () {
+    fn @for_the_bound(boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
         for xw in unroll(lower_w, upper_w) {
             @brdr_assigns(xw, boundary, lower_high, upper_low);
         };
@@ -549,27 +549,27 @@ fn @new_type0_col_selection(swin: Win2D, loop_schedule: LoopCircular, get_bounds
     let lower_regs = new_regs2d((lower_low, 0), (lower_high, swin.height));
     let upper_regs = new_regs2d((upper_low, 0), (upper_high, swin.height));
 
-    fn @read_fun(x: int, y: int) -> pixel_t {
+    fn @read_fun(x: i32, y: i32) -> pixel_t {
              if x > upper_low - 1 && x < upper_high { upper_regs.read(x, y) }
         else if x > lower_low - 1 && x < lower_high { lower_regs.read(x, y) }
         else { swin.read(x, y) }
     }
 
-    fn @write_fun(x: int, y: int, din: pixel_t) -> () {
+    fn @write_fun(x: i32, y: i32, din: pixel_t) -> () {
         if      x > upper_low - 1 && x < upper_high { upper_regs.write(x, y, din) }
         else if x > lower_low - 1 && x < lower_high { lower_regs.write(x, y, din) }
         else {}
     }
 
-    fn @brdr_assigns(xw: int, boundary: Boundary, lower_high: int, upper_low: int) -> () {
+    fn @brdr_assigns(xw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
         for yw in unroll(0, swin.height) {
-            fn @get_fun(i: int) -> pixel_t { swin.read(i, yw) };
+            fn @get_fun(i: i32) -> pixel_t { swin.read(i, yw) };
             let pix_bh = read_pixel_bh(xw, get_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
             write_fun(xw, yw, pix_bh);
         }
     }
 
-    fn @update(col_ridx: int) -> () {
+    fn @update(col_ridx: i32) -> () {
         for boundary in iterate1d_atborders() {
             bh_type0($col_ridx, boundary, loop_schedule, get_bounds_fun, brdr_assigns);
         }
@@ -591,7 +591,7 @@ fn @get_stencil_mask(mask: Mask) -> StencilMask {
     }
 }
 
-fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+fn @FetchAndCalc(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
     let swin_width = mask.size_x + pFactor - 1;
@@ -621,7 +621,7 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
     let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
     let col_sel_type0 = new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper);
 
-    fn @process(col_ridx: int, row_ridx: int) -> () {
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
         swin.update($col_ridx, $row_ridx);
         col_sel_type0.update($col_ridx);
 
@@ -652,7 +652,7 @@ fn @FetchAndCalc(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask
     }
 }
 
-fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+fn @CalcAndPack(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let swin_width = mask.size_x + pFactor - 1;
     let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
@@ -703,7 +703,7 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
         }
     };
 
-    fn @pack(v: int) -> fn(int, int, pixel_t) -> () {
+    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
         @|x, y, data| {
             if  v < pack_offset {
                 let pack_idx =  v + delay_width;
@@ -716,7 +716,7 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
         }
     }
 
-    fn @process(col_ridx: int, row_ridx: int) -> () {
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
         swin.update($col_ridx, $row_ridx);
         col_sel_type0.update($col_ridx);
 
@@ -750,7 +750,7 @@ fn @CalcAndPack(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_
     }
 }
 
-fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
     let swin_width = mask.size_x + pFactor - 1;
@@ -761,7 +761,7 @@ fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D,
     let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
     let swin = new_sliding_win(lbufs, swin_stride, mask.size_y);
 
-    fn @process(col_ridx: int, row_ridx: int) -> () {
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
         swin.update($col_ridx, $row_ridx);
 
         for v in unroll(0, pFactor) {
@@ -791,7 +791,7 @@ fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D,
 }
 
 
-fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+fn @CalcAndPack_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let swin_width = mask.size_x + pFactor - 1;
     let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
@@ -814,7 +814,7 @@ fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, 
     let pack_offset = pFactor - delay_width;
     let vec_delayed = new_databeat(delay_width);
 
-    fn @pack(v: int) -> fn(int, int, pixel_t) -> () {
+    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
         @|x, y, data| {
             if  v < pack_offset {
                 let pack_idx =  v + delay_width;
@@ -827,7 +827,7 @@ fn @CalcAndPack_nobh(math: Intrinsics, pFactor: int, in_s: Mem2D, out_s: Mem2D, 
         }
     }
 
-    fn @process(col_ridx: int, row_ridx: int) -> () {
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
         swin.update($col_ridx, $row_ridx);
 
         for v in unroll(0, pFactor) {
@@ -1393,7 +1393,7 @@ fn @split_image_point(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut 
 // ---------------------------------------------------------------------------
 // ------------------------ Global Operators   ----------------------------------
 // ---------------------------------------------------------------------------
-fn @reduce_balanced(prev: regs1d, block: int, body: fn(regs1d, int, int) -> pixel_t) -> pixel_t {
+fn @reduce_balanced(prev: regs1d, block: i32, body: fn(regs1d, i32, i32) -> pixel_t) -> pixel_t {
     let size = (prev.end - prev.begin);
 
     if (size < block + 1) {
@@ -1420,7 +1420,7 @@ fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, bod
     let pFactor = get_vector_length();
 
     // reduce two inputs with the body function
-    fn @reduce_block(data: regs1d, start: int, end : int) -> pixel_t {
+    fn @reduce_block(data: regs1d, start: i32, end : i32) -> pixel_t {
         if (end - start) > 1 {
             let mut result = @body(math, data.read(start), data.read(start + 1));
             for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
@@ -1446,7 +1446,7 @@ fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, bod
             let mut col_ridx = 0;
             let mut bh_apply = false;
 
-            fn @col_update(ridx: int) -> () {
+            fn @col_update(ridx: i32) -> () {
                 if bh_neccessary == true {
                     col_ridx++;
                     if bh_apply == true { col_ridx = 0; bh_apply = false;}
