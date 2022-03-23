@@ -14,10 +14,9 @@ struct Img {
     stride  : i32,
 }
 
+static mut dummy :pipe;
 fn @new_img(width: i32, height: i32, stride: i32, buf: Buffer) = Img {
-    //static mut dummy :pipe;
-    //buf = buf, fifo = &mut dummy, virtual = false, width = width, height = height, stride = stride
-    buf = buf, virtual = false, width = width, height = height, stride = stride
+    buf = buf, fifo = &mut dummy, virtual = false, width = width, height = height, stride = stride
 };
 
 fn @alloc_img[T](img: Img, alloc: fn(i64) -> Buffer) = new_img(img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()));
