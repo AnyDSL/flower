@@ -1,27 +1,27 @@
-fn @iteration(acc: Accelerator, width: i32, height: i32, body: fn(i32, i32) -> ()) -> () {
+fn @iteration(body: fn(i32, i32) -> ()) = @|acc: Accelerator, width: i32, height: i32| {
     let grid  = (1, 1, 1);
     let block = (1, 1, 1);
     for work_item in acc.exec(grid, block) {
      for y in range(0, height) {
         for x in auto_pipeline(0, width) {
-                @@body(x, y);
+                @body(x, y);
             }
         }
         for y in range(0, width) {
             for x in pipeline(2, 0, height) {
-                @@body(x, y);
+                @body(x, y);
             }
         }
     }
-}
+};
 
-fn @auto_pipeline(lower: i32, upper: i32, body: fn(i32) -> ()) -> () {
+fn @auto_pipeline(body: fn(i32) -> ()) = @|lower: i32, upper: i32| {
     let II = 0; // Auto II
-    pipeline(II, lower, upper, body)
-}
+    thorin_pipeline(II, lower, upper, body)
+};
 
-fn @read(buf: Buffer, i: i32) -> f32 { bitcast[&[1][f32]](buf.data)(i) }
-fn @write(buf: Buffer, i: i32, v: f32) -> () { bitcast[&mut[1][f32]](buf.data)(i) = v }
+fn @read(buf: Buffer, i: i32) -> f32 { bitcast[&addrspace(1)[f32]](buf.data)(i) }
+fn @write(buf: Buffer, i: i32, v: f32) -> () { bitcast[&mut addrspace(1)[f32]](buf.data)(i) = v }
 
 fn main() -> i32 {
     let width   = 2048;
@@ -35,7 +35,7 @@ fn main() -> i32 {
         let arr_ptr = bitcast[&mut[f32]](arr.data);
         let out_ptr = bitcast[&mut[f32]](out.data);
         arr_ptr(i) = i as f32;
-        out_ptr(i) = 0.0f;
+        out_ptr(i) = 0:f32;
     }
 
     copy(arr, arr_fpga);
