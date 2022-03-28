@@ -96,10 +96,10 @@ fn @iterate1d_atborders(body: fn(Boundary) -> ()) -> () {
 }
 
 //---------------------- HW pipelining -------------------------------------------
-fn @auto_pipeline(lower: i32, upper: i32, body: fn(i32) -> ()) -> () {
+fn @auto_pipeline(body: fn(i32) -> ()) = @|lower: i32, upper: i32, | {
     let II = 0; // Toggles auto II
-    pipeline(II, lower, upper, body);
-}
+    thorin_pipeline(II, lower, upper, body);
+};
 
 // --------------------- memory copy functions --------------------------------
 fn @copy_img(src: Img, dst: Img) -> () {
