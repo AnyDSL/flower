@@ -84,12 +84,13 @@ struct StencilMask{
 }
 
 // ------------------------------ loops ----------------------------------------
-fn @iterate1d_border(body: fn(Boundary) -> ()) -> () {
+fn @iterate1d_border(body: fn(Boundary) -> ()) = @|| {
     for row in unroll(0, 3) {
         let boundary = get_boundary(row);
         @body(boundary);
     }
-}
+};
+
 fn @iterate1d_atborders(body: fn(Boundary) -> ()) -> () {
     @body(Boundary::Lower);
     @body(Boundary::Upper);
