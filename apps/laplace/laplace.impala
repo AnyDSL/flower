@@ -1,6 +1,7 @@
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
+    let create_host_img = create_host_img[pixel_t];
     let arr    = create_host_img(width, height);
     let out    = create_host_img(width, height);
     init_rand(bitcast[&mut[pixel_t]](arr.buf.data), arr.stride, out.height);

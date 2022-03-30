@@ -7,9 +7,10 @@ static mut out2_buf: pipe;
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
+    let create_host_img = create_host_img[pixel_t];
     let arr    = create_host_img(width, height);
     let out    = create_host_img(width, height);
-    let out00   = create_virtual_img(width, height, &mut out00_buf);
+    let out00  = create_virtual_img(width, height, &mut out00_buf);
     let out0   = create_virtual_img(width, height, &mut out0_buf);
     let out1   = create_virtual_img(width, height, &mut out1_buf);
     let out2   = create_virtual_img(width, height, &mut out2_buf);

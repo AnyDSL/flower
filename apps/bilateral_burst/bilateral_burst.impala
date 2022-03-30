@@ -52,6 +52,7 @@ fn main() -> i32 {
     let height  = 1024;
     let sigma_r = 5:f32;
     let c_r     = 1:f32 / (2:f32 * sigma_r*sigma_r);
+    let create_host_img = create_host_img[pixel_t];
     let arr     = create_host_img(width, height);
     let out     = create_host_img(width, height);
     let mm_to_str = create_virtual_img(width, height, &mut mm_to_str_buf);

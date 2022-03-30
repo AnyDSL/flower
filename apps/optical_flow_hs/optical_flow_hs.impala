@@ -114,6 +114,7 @@ fn main() -> i32 {
     let iteration_point3 = iteration_point3[pixel_t];
     let iteration_point5 = iteration_point5[pixel_t];
     let get_acc = get_acc[pixel_t];
+    let create_host_img = create_host_img[pixel_t];
 
     let in_frame_1 = create_host_img(width, height);
     let in_frame_2 = create_host_img(width, height);

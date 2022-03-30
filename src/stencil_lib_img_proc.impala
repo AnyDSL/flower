@@ -8,9 +8,9 @@ fn @create_virtual_img(width: i32, height: i32, _buf: &mut pipe) -> Img {
     create_img(width, height, alloc_cpu)
 }
 
-fn @create_host_img(width: i32, height: i32) -> Img {
+fn @create_host_img[T](width: i32, height: i32) -> Img {
     let stride = round_up(width, get_vector_length());
-    let buf = alloc_cpu((stride * height) as i64 * sizeof[pixel_t]());
+    let buf = alloc_cpu((stride * height) as i64 * sizeof[T]());
     new_img(width, height, stride, buf)
 }
 

@@ -69,6 +69,7 @@ fn main() -> i32 {
     let get_acc = get_acc[pixel_t];
 
 
+    let create_host_img = create_host_img[pixel_t];
     let in_frame_1 = create_host_img(width, height);
     let in_frame_2 = create_host_img(width, height);
     let out_host_v_x = create_host_img(width, height);

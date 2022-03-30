@@ -1,8 +1,8 @@
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
-    let arr    = create_host_img(width, height);
-    let out    = create_host_img(width, height);
+    let arr    = create_host_img[pixel_t](width, height);
+    let out    = create_host_img[pixel_t](width, height);
     init_rand(bitcast[&mut[pixel_t]](arr.buf.data), arr.stride, out.height);
     init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
 
@@ -20,7 +20,7 @@ fn main() -> i32 {
     print_total_timing();
 
     fn reference() -> i32 {
-        let ref     = create_host_img(width, height);
+        let ref     = create_host_img[pixel_t](width, height);
         let get_acc = get_acc[pixel_t];
         let arr_acc = get_acc(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx));
         let out_acc = get_acc(out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
