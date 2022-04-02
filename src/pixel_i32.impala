@@ -8,21 +8,21 @@ fn @is_same_pixel(a: pixel_t, b: pixel_t) -> bool { a == b }
 fn @print_pixel[T](pixel: T) -> () { print_i32(bitcast[pixel_t](pixel)) }
 fn @absolute(a: pixel_t) -> pixel_t {abs(a)}
 
-fn @read_channel1  (c: &mut channel1_i32)   -> [pixel_t * 1  ] { read_channel1_i32(c)   }
-fn @read_channel2  (c: &mut channel2_i32)   -> [pixel_t * 2  ] { read_channel2_i32(c)   }
-fn @read_channel4  (c: &mut channel4_i32)   -> [pixel_t * 4  ] { read_channel4_i32(c)   }
-fn @read_channel8  (c: &mut channel8_i32)   -> [pixel_t * 8  ] { read_channel8_i32(c)   }
-fn @read_channel16 (c: &mut channel16_i32)  -> [pixel_t * 16 ] { read_channel16_i32(c)  }
-fn @read_channel32 (c: &mut channel32_i32)  -> [pixel_t * 32 ] { read_channel32_i32(c)  }
-//fn @read_channel64 (c: &mut channel64_i32)  -> [pixel_t * 64 ] { read_channel64_i32(c)  }
-//fn @read_channel128(c: &mut channel128_i32) -> [pixel_t * 128] { read_channel128_i32(c) }
+fn @read_channel1[T]  (c: &mut channel1_i32)   -> [T * 1  ] { read_channel1_i32[T](c)   }
+fn @read_channel2[T]  (c: &mut channel2_i32)   -> [T * 2  ] { read_channel2_i32[T](c)   }
+fn @read_channel4[T]  (c: &mut channel4_i32)   -> [T * 4  ] { read_channel4_i32[T](c)   }
+fn @read_channel8[T]  (c: &mut channel8_i32)   -> [T * 8  ] { read_channel8_i32[T](c)   }
+fn @read_channel16[T] (c: &mut channel16_i32)  -> [T * 16 ] { read_channel16_i32[T](c)  }
+fn @read_channel32[T] (c: &mut channel32_i32)  -> [T * 32 ] { read_channel32_i32[T](c)  }
+//fn @read_channel64[T] (c: &mut channel64_i32)  -> [T * 64 ] { read_channel64_i32[T](c)  }
+//fn @read_channel128[T](c: &mut channel128_i32) -> [T * 128] { read_channel128_i32[T](c) }
 
-fn @write_channel1  (c: &mut  channel1_i32, v: [pixel_t * 1  ] )  -> () { write_channel1_i32(c, v)   }
-fn @write_channel2  (c: &mut  channel2_i32, v: [pixel_t * 2  ] )  -> () { write_channel2_i32(c, v)   }
-fn @write_channel4  (c: &mut  channel4_i32, v: [pixel_t * 4  ] )  -> () { write_channel4_i32(c, v)   }
-fn @write_channel8  (c: &mut  channel8_i32, v: [pixel_t * 8  ] )  -> () { write_channel8_i32(c, v)   }
-fn @write_channel16 (c: &mut  channel16_i32, v: [pixel_t * 16] )  -> () { write_channel16_i32(c, v)  }
-fn @write_channel32 (c: &mut  channel32_i32, v: [pixel_t * 32] )  -> () { write_channel32_i32(c, v)  }
-//fn @write_channel64 (c: &mut  channel64_i32, v: [pixel_t * 64] )  -> () { write_channel64_i32(c, v)  }
-//fn @write_channel128(c: &mut  channel128_i32, v: [pixel_t * 128]) -> () { write_channel128_i32(c, v) }
-fn @bitcast_channel (c: &mut channel1_i32) -> [pixel_t * 2] { bitcast_channel_i32(c) }
+fn @write_channel1[T]  (c: &mut  channel1_i32, v: [T * 1  ] )  -> () { write_channel1_i32[T](c, v)   }
+fn @write_channel2[T]  (c: &mut  channel2_i32, v: [T * 2  ] )  -> () { write_channel2_i32[T](c, v)   }
+fn @write_channel4[T]  (c: &mut  channel4_i32, v: [T * 4  ] )  -> () { write_channel4_i32[T](c, v)   }
+fn @write_channel8[T]  (c: &mut  channel8_i32, v: [T * 8  ] )  -> () { write_channel8_i32[T](c, v)   }
+fn @write_channel16[T] (c: &mut  channel16_i32, v: [T * 16] )  -> () { write_channel16_i32[T](c, v)  }
+fn @write_channel32[T] (c: &mut  channel32_i32, v: [T * 32] )  -> () { write_channel32_i32[T](c, v)  }
+//fn @write_channel64[T] (c: &mut  channel64_i32, v: [T * 64] )  -> () { write_channel64_i32[T](c, v)  }
+//fn @write_channel128[T](c: &mut  channel128_i32, v: [T * 128]) -> () { write_channel128_i32[T](c, v) }
+fn @bitcast_channel[T] (c: &mut channel1_i32) -> [T * 2] { bitcast_channel_i32[T](c) }

@@ -1,31 +1,33 @@
-fn @channel_to_Mem2D_read(img: Img, pFactor: i32) -> Mem2D {
+fn @channel_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
     if(pFactor == 1) {
-        channel_to_Mem2D_read_vec1 (img)
+        channel_to_Mem2D_read_vec1[T] (img)
     } else {
-        undef[Mem2D]()
+        undef[Mem2D[T]]()
     }
 }
 
-fn @channel_to_Mem2D_write(img: Img, pFactor: i32) -> Mem2D {
+fn @channel_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
     if(pFactor == 1) {
-        channel_to_Mem2D_write_vec1 (img)
+        channel_to_Mem2D_write_vec1[T] (img)
     } else {
-        undef[Mem2D]()
+        undef[Mem2D[T]]()
     }
 }
 
-fn @channel_to_Mem2D_read_vec1(img: Img) -> Mem2D {
-    let mut value = [ 0 as pixel_t ];
-    fn @update(idx: i32) -> () { value = read_channel1(img.fifo); }
-    fn @read(idx: i32) -> pixel_t { value(idx) }
-    fn @write(idx: i32, din: pixel_t) -> () { value(idx) = din; }
-    create_Mem2D_from_img(img, 1, update, read, write)
+fn @channel_to_Mem2D_read_vec1[T](img: Img) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t ];
+    let mut value = bitcast[[T * 1]]([ 0 ]);
+    fn @update(idx: i32) -> () { value = read_channel1[T](img.fifo); }
+    fn @read(idx: i32) -> T { value(idx) }
+    fn @write(idx: i32, din: T) -> () { value(idx) = din; }
+    create_Mem2D_from_img[T](img, 1, update, read, write)
 }
 
-fn @channel_to_Mem2D_write_vec1(img: Img) -> Mem2D {
-    let mut value = [ 0 as pixel_t ];
-    fn @update(idx: i32) -> () { write_channel1(img.fifo, value); }
-    fn @read(idx: i32) -> pixel_t { value(idx) }
-    fn @write(idx: i32, din: pixel_t) -> () { value(idx) = din; }
-    create_Mem2D_from_img(img, 1, update, read, write)
+fn @channel_to_Mem2D_write_vec1[T](img: Img) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t ];
+    let mut value = bitcast[[T * 1]]([ 0 ]);
+    fn @update(idx: i32) -> () { write_channel1[T](img.fifo, value); }
+    fn @read(idx: i32) -> T { value(idx) }
+    fn @write(idx: i32, din: T) -> () { value(idx) = din; }
+    create_Mem2D_from_img[T](img, 1, update, read, write)
 }

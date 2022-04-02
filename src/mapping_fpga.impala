@@ -1,4 +1,4 @@
-static coarsening_policy = FetchAndCalc; // FetchAndCalc, FetchAndCalc_nobh, CalcAndPack, CalcAndPack_nobh;
+//static coarsening_policy = FetchAndCalc; // FetchAndCalc, FetchAndCalc_nobh, CalcAndPack, CalcAndPack_nobh;
 
 // ---------------------------- types ------------------------------------------
 // border handling
@@ -6,13 +6,13 @@ type Bounds = (i32, i32);
 type get_bounds_fun_type = fn(Boundary) -> Bounds;
 type pixel_read_type  = fn(i32, i32, Boundary, Bounds, fn(i32) -> pixel_t) -> pixel_t;
 type row_sel_fun_type = fn(i32, brdr_assigns_type) -> ();
-type crsn_type = fn(Intrinsics, Mem2D, Mem2D, i32, Mask, i32, BoundaryFn, BoundaryFn, StencilFn) -> coarsening_type;
+type crsn_type[T] = fn(Intrinsics, Mem2D[T], Mem2D[T], i32, Mask, i32, BoundaryFn[T], BoundaryFn[T], StencilFn[T]) -> coarsening_type;
 type brdr_assigns_type = fn(i32, Boundary, i32, i32) -> ();
 // ---------------------------- structs ----------------------------------------
 // memory access
-struct Mem2D {
-    read    : fn(i32) -> pixel_t,
-    write   : fn(i32, pixel_t) -> (),
+struct Mem2D[T] {
+    read    : fn(i32) -> T,
+    write   : fn(i32, T) -> (),
     update  : fn(i32) -> (),
     height  : i32,
     width   : i32,
@@ -32,23 +32,23 @@ struct Hardware {
 }
 
 // register arrays
-struct regs1d {
-    read  : fn(i32) -> pixel_t,
-    write : fn(i32, pixel_t) -> (),
+struct regs1d[T] {
+    read  : fn(i32) -> T,
+    write : fn(i32, T) -> (),
     begin : i32,
     end   : i32
 }
-struct regs2d {
-    read  : fn(i32, i32) -> pixel_t,
-    write : fn(i32, i32, pixel_t) -> (),
+struct regs2d[T] {
+    read  : fn(i32, i32) -> T,
+    write : fn(i32, i32, T) -> (),
     begin : (i32, i32),
     end   : (i32, i32)
 }
 
 // on-chip memory
-struct Win2D {
-    read   : fn(i32, i32) -> pixel_t,
-    write  : fn(i32, i32, pixel_t) -> (),
+struct Win2D[T] {
+    read   : fn(i32, i32) -> T,
+    write  : fn(i32, i32, T) -> (),
     update : fn(i32, i32) -> (),
     height  : i32,
     width   : i32,
@@ -113,10 +113,10 @@ fn @copy_real_img(src: Img, dst: Img) -> () {
     }
 }
 
-fn @get_device_copy(img: Img) -> Img {
+fn @get_device_copy[T](img: Img) -> Img {
     if img.virtual == false {
         let acc = accelerator(device_id);
-        let img_dev = alloc_img(img, acc.alloc);
+        let img_dev = alloc_img[T](img, acc.alloc);
         copy_real_img(img, img_dev);
         img_dev
     } else {
@@ -154,65 +154,73 @@ fn @get_device_sync2(img0: Img, img1: Img) -> fn() -> () {
 
 
 // -------------------------  line buffers --------------------------------------
-fn @create_line_buffer(in_s: Mem2D, width: i32) -> Mem2D {
+fn @create_line_buffer[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
     match in_s.pFactor {
-         1 => create_line_buffer_vec1 (in_s, width),
-         2 => create_line_buffer_vec2 (in_s, width),
-         4 => create_line_buffer_vec4 (in_s, width),
-         8 => create_line_buffer_vec8 (in_s, width),
-        16 => create_line_buffer_vec16(in_s, width),
-        32 => create_line_buffer_vec32(in_s, width),
-         _ => undef[Mem2D]()
+         1 => create_line_buffer_vec1[T] (in_s, width),
+         2 => create_line_buffer_vec2[T] (in_s, width),
+         4 => create_line_buffer_vec4[T] (in_s, width),
+         8 => create_line_buffer_vec8[T] (in_s, width),
+        16 => create_line_buffer_vec16[T](in_s, width),
+        32 => create_line_buffer_vec32[T](in_s, width),
+         _ => undef[Mem2D[T]]()
     }
 }
 
 // shared
-fn @create_line_buffer_vec1(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = 0 as pixel_t;
-    let lbuf = reserve_shared[pixel_t](width);
+fn @create_line_buffer_vec1[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = 0 as pixel_t;
+    let mut value = bitcast[T](0);
+    //let lbuf = reserve_shared[pixel_t](width);
+    let lbuf = reserve_shared[T](width);
 
-    fn @read(idx: i32) -> pixel_t { value }
+    fn @read(idx: i32) -> T { value }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         lbuf(col) = in_s.read(0);
     }
 
-    create_Mem2D_read(width, 1, 1, shift, read)
+    create_Mem2D_read[T](width, 1, 1, shift, read)
 }
 
-fn @create_line_buffer_vec2(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = [ 0 as pixel_t; 2 ];
-    let lbuf = reserve_shared[[pixel_t * 2]](width);
+fn @create_line_buffer_vec2[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t; 2 ];
+    let mut value = bitcast[[T * 2]]([0; 2]);
+    //let lbuf = reserve_shared[[pixel_t * 2]](width);
+    let lbuf = reserve_shared[[T * 2]](width);
 
-    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1)];
         lbuf(col) = dlbin;
     }
 
-    create_Mem2D_read(width, 1, 2, shift, read)
+    create_Mem2D_read[T](width, 1, 2, shift, read)
 }
 
-fn @create_line_buffer_vec4(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = [ 0 as pixel_t; 4 ];
-    let lbuf = reserve_shared[[pixel_t * 4]](width);
+fn @create_line_buffer_vec4[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t; 4 ];
+    let mut value = bitcast[[T * 4]]([0; 4 ]);
+    //let lbuf = reserve_shared[[pixel_t * 4]](width);
+    let lbuf = reserve_shared[[T * 4]](width);
 
-    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3)];
         lbuf(col) = dlbin;
     }
 
-    create_Mem2D_read(width, 1, 4, shift, read)
+    create_Mem2D_read[T](width, 1, 4, shift, read)
 }
 
-fn @create_line_buffer_vec8(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = [ 0 as pixel_t; 8 ];
-    let lbuf = reserve_shared[[pixel_t * 8]](width);
+fn @create_line_buffer_vec8[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t; 8 ];
+    let mut value = bitcast[[T * 8]]([ 0; 8 ]);
+    //let lbuf = reserve_shared[[pixel_t * 8]](width);
+    let lbuf = reserve_shared[[T * 8]](width);
 
-    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3),
@@ -220,14 +228,16 @@ fn @create_line_buffer_vec8(in_s: Mem2D, width: i32) -> Mem2D {
         lbuf(col) = dlbin;
     }
 
-    create_Mem2D_read(width, 1, 8, shift, read)
+    create_Mem2D_read[T](width, 1, 8, shift, read)
 }
 
-fn @create_line_buffer_vec16(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = [ 0 as pixel_t; 16 ];
-    let lbuf = reserve_shared[[pixel_t * 16]](width);
+fn @create_line_buffer_vec16[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t; 16 ];
+    let mut value = bitcast[[T * 16]]([0; 16]);
+    //let lbuf = reserve_shared[[pixel_t * 16]](width);
+    let lbuf = reserve_shared[[T * 16]](width);
 
-    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0), in_s.read(1), in_s.read(2), in_s.read(3),
@@ -237,14 +247,16 @@ fn @create_line_buffer_vec16(in_s: Mem2D, width: i32) -> Mem2D {
         lbuf(col) = dlbin;
     }
 
-    create_Mem2D_read(width, 1, 16, shift, read)
+    create_Mem2D_read[T](width, 1, 16, shift, read)
 }
 
-fn @create_line_buffer_vec32(in_s: Mem2D, width: i32) -> Mem2D {
-    let mut value = [ 0 as pixel_t; 32 ];
-    let lbuf = reserve_shared[[pixel_t * 32]](width);
+fn @create_line_buffer_vec32[T](in_s: Mem2D[T], width: i32) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t; 32 ];
+    let mut value = bitcast[[T * 32]]([0; 32]);
+    //let lbuf = reserve_shared[[pixel_t * 32]](width);
+    let lbuf = reserve_shared[[T * 32]](width);
 
-    fn @read(idx: i32) -> pixel_t { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) }
     fn @shift(col: i32) -> () {
         value     = lbuf(col);
         let dlbin = [in_s.read(0),  in_s.read(1),  in_s.read(2),  in_s.read(3),
@@ -258,18 +270,18 @@ fn @create_line_buffer_vec32(in_s: Mem2D, width: i32) -> Mem2D {
         lbuf(col) = dlbin;
     }
 
-    create_Mem2D_read(width, 1, 32, shift, read)
+    create_Mem2D_read[T](width, 1, 32, shift, read)
 }
 
 // -------------------------- Array of Registers -------------------------------
-fn @new_databeat(width: i32) -> regs1d {
-    new_regs1d(0, width)
+fn @new_databeat[T](width: i32) -> regs1d[T] {
+    new_regs1d[T](0, width)
 }
 
 
-fn @concat_regs1d(left: regs1d, roil: Interval1d, right: regs1d, roir: Interval1d) -> regs1d {
+fn @concat_regs1d[T](left: regs1d[T], roil: Interval1d, right: regs1d[T], roir: Interval1d) -> regs1d[T] {
     let o = roil.end - roil.start;
-    regs1d {
+    regs1d[T] {
         write = @|i, val| if i < o { left.write(i + roil.start, val) } else { right.write(i - o + roir.start, val) },
         read  = @|i|      if i < o  { left.read(i + roil.start) } else  { right.read(i - o + roir.start) },
         begin = 0,
@@ -277,18 +289,19 @@ fn @concat_regs1d(left: regs1d, roil: Interval1d, right: regs1d, roir: Interval1
     }
 }
 
-fn @new_regs1d(begin: i32, end: i32) -> regs1d {
+fn @new_regs1d[T](begin: i32, end: i32) -> regs1d[T] {
     if end == begin {
-        regs1d {
+        regs1d[T] {
             write = @|_, _| (),
-            read  = @|_| undef[pixel_t](),
+            read  = @|_| undef[T](),
             begin = begin,
             end   = end
         }
     } else if begin + 1 == end {
         //pe_info("found", begin);
-        let mut value = 0 as pixel_t;
-        regs1d {
+        //let mut value = 0 as pixel_t;
+        let mut value = bitcast[T](0);
+        regs1d[T] {
             write = @|i, v| value = v,
             read  = @|i| value,
             begin = begin,
@@ -298,9 +311,9 @@ fn @new_regs1d(begin: i32, end: i32) -> regs1d {
         //pe_info("begin", begin);
         //pe_info("end", end);
         let m = (end + begin) / 2;
-        let left  = new_regs1d(begin, m);
-        let right = new_regs1d(m, end);
-        regs1d {
+        let left  = new_regs1d[T](begin, m);
+        let right = new_regs1d[T](m, end);
+        regs1d[T] {
             write = @|i, v| if i >= m { right.write(i, v) } else { left.write(i, v) },
             read  = @|i|    if i >= m { right.read(i) } else { left.read(i) },
             begin = begin,
@@ -309,19 +322,19 @@ fn @new_regs1d(begin: i32, end: i32) -> regs1d {
     }
 }
 
-fn @new_regs2d(begin: (i32, i32), end: (i32, i32)) -> regs2d {
+fn @new_regs2d[T](begin: (i32, i32), end: (i32, i32)) -> regs2d[T] {
     let (begin_x, begin_y) = begin;
     let (end_x, end_y)     = end;
     if end_y == begin_y {
-        regs2d {
+        regs2d[T] {
             write = @|_, _, _| (),
-            read  = @|_, _| undef[pixel_t](),
+            read  = @|_, _| undef[T](),
             begin = begin,
             end   = end
         }
     } else if begin_y + 1 == end_y {
-        let row = new_regs1d(begin_x, end_x);
-        regs2d {
+        let row = new_regs1d[T](begin_x, end_x);
+        regs2d[T] {
             write = @|x, y, v| row.write(x, v),
             read  = @|x, y|    row.read(x),
             begin = begin,
@@ -329,9 +342,9 @@ fn @new_regs2d(begin: (i32, i32), end: (i32, i32)) -> regs2d {
         }
     } else {
         let m = (end_y + begin_y) / 2;
-        let left  = new_regs2d((begin_x, begin_y), (end_x, m));
-        let right = new_regs2d((begin_x, m),       (end_x, end_y));
-        regs2d {
+        let left  = new_regs2d[T]((begin_x, begin_y), (end_x, m));
+        let right = new_regs2d[T]((begin_x, m),       (end_x, end_y));
+        regs2d[T] {
             write = @|x, y, v| if y >= m { right.write(x, y, v) } else { left.write(x, y, v) },
             read  = @|x, y|    if y >= m { right.read(x, y) } else { left.read(x, y) },
             begin = begin,
@@ -345,10 +358,10 @@ fn @new_regs2d(begin: (i32, i32), end: (i32, i32)) -> regs2d {
 // ------------------------ Stencil Codes ------------------------------------
 // ---------------------------------------------------------------------------
 //  ---- Instances of On Chip Memory: Line Buffers and Sliding Window  --------
-fn @new_line_buffers(in_s: Mem2D, width: i32, height: i32) -> Win2D {
+fn @new_line_buffers[T](in_s: Mem2D[T], width: i32, height: i32) -> Win2D[T] {
     let stride = (width - 1) / in_s.pFactor + 1;
     if height == 0 {
-        Win2D {
+        Win2D[T] {
             read   = @|x, y| in_s.read(x),
             write  = @|_, _, _| (),
             update = @|_, _| (),
@@ -358,9 +371,9 @@ fn @new_line_buffers(in_s: Mem2D, width: i32, height: i32) -> Win2D {
             pFactor= in_s.pFactor
         }
     } else {
-        let shared_s = create_line_buffer(in_s, width);
-        let sub_lbuf = new_line_buffers(shared_s, width, height - 1);
-        Win2D {
+        let shared_s = create_line_buffer[T](in_s, width);
+        let sub_lbuf = new_line_buffers[T](shared_s, width, height - 1);
+        Win2D[T] {
             read   = @|x, y| {
                 if y == height - 1 {
                     in_s.read(x)
@@ -381,8 +394,8 @@ fn @new_line_buffers(in_s: Mem2D, width: i32, height: i32) -> Win2D {
     }
 }
 
-fn @new_sliding_win(lbufs: Win2D, stride: i32, height: i32) -> Win2D {
-    let swin = new_regs2d((0, 0), (stride, height));
+fn @new_sliding_win[T](lbufs: Win2D[T], stride: i32, height: i32) -> Win2D[T] {
+    let swin = new_regs2d[T]((0, 0), (stride, height));
     let pFactor = lbufs.pFactor;
 
     fn @shift() -> () {
@@ -400,7 +413,7 @@ fn @new_sliding_win(lbufs: Win2D, stride: i32, height: i32) -> Win2D {
             }
         }
     }
-    Win2D {
+    Win2D[T] {
         read   = swin.read,
         write  = @|_, _, _| (),
         update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
@@ -414,38 +427,38 @@ fn @new_sliding_win(lbufs: Win2D, stride: i32, height: i32) -> Win2D {
 
 // sliding window with row selection
 // todo: reduce the parameter list
-fn @new_sliding_win_bh(lbufs: Win2D, height: i32, stride: i32, width : i32, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> Win2D {
-    let swin = new_regs2d((0, 0), (stride, height));
-    let pFactor = lbufs.pFactor;
-
-    fn @brdr_assigns(yw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
-        for xw in unroll(0, pFactor) {
-            fn @read_fun(i: i32) -> pixel_t { lbufs.read(xw, i) };
-            let pix_bh = read_pixel_bh(yw, read_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
-            swin.write(xw + stride - pFactor, yw, pix_bh)
-        }
-    }
-
-    fn @shift(col_ridx: i32, row_ridx: i32) -> () {
-        for j in unroll(0, height) {
-            for i in unroll(0, stride - pFactor) {
-                swin.write(i, j, swin.read(i + pFactor, j));
-            }
-        }
-        row_sel_fun($row_ridx, brdr_assigns);
-    }
-
-    Win2D {
-        read   = swin.read,
-        write  = @|_, _, _| (),
-        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
-                                         shift($col_ridx, $row_ridx) },
-        height = height,
-        width  = width, // optimum
-        stride = stride,
-        pFactor= pFactor
-    }
-}
+//fn @new_sliding_win_bh[T](lbufs: Win2D, height: i32, stride: i32, width : i32, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Win2D {
+//    let swin = new_regs2d((0, 0), (stride, height));
+//    let pFactor = lbufs.pFactor;
+//
+//    fn @brdr_assigns(yw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
+//        for xw in unroll(0, pFactor) {
+//            fn @read_fun(i: i32) -> pixel_t { lbufs.read(xw, i) };
+//            let pix_bh = read_pixel_bh[pixel_t](yw, read_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
+//            swin.write(xw + stride - pFactor, yw, pix_bh)
+//        }
+//    }
+//
+//    fn @shift(col_ridx: i32, row_ridx: i32) -> () {
+//        for j in unroll(0, height) {
+//            for i in unroll(0, stride - pFactor) {
+//                swin.write(i, j, swin.read(i + pFactor, j));
+//            }
+//        }
+//        row_sel_fun($row_ridx, brdr_assigns);
+//    }
+//
+//    Win2D {
+//        read   = swin.read,
+//        write  = @|_, _, _| (),
+//        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
+//                                         shift($col_ridx, $row_ridx) },
+//        height = height,
+//        width  = width, // optimum
+//        stride = stride,
+//        pFactor= pFactor
+//    }
+//}
 
 
 //  --------------------------  Border Handling  -------------------------------
@@ -460,18 +473,18 @@ fn @new_bounds(lower: i32, lower_bh_pixels: i32, upper_bh_pixels: i32, upper: i3
     }
 }
 
-fn @read_pixel_bh(xw: i32, read: fn(i32) -> pixel_t, boundary: Boundary, lower_high: i32, upper_low: i32, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> pixel_t {
+fn @read_pixel_bh[T](xw: i32, read: fn(i32) -> T, boundary: Boundary, lower_high: i32, upper_low: i32, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> T {
         let mode_x = match boundary {
             Boundary::Lower   => bh_lower(xw, lower_high, 0),
-            Boundary::Center  => BoundaryMode::Index(xw),
+            Boundary::Center  => BoundaryMode[T]::Index(xw),
             Boundary::Upper   => bh_upper(xw, 0, upper_low),
-            Boundary::Unknown => undef[(BoundaryMode)]()
+            Boundary::Unknown => undef[(BoundaryMode[T])]()
         };
 
         match mode_x {
-            BoundaryMode::Index(idx) => read(idx),
-            BoundaryMode::Const(c)   => c,
-            _ => undef[pixel_t]()
+            BoundaryMode[T]::Index(idx) => read(idx),
+            BoundaryMode[T]::Const(c)   => c,
+            _ => undef[T]()
         }
 }
 
@@ -544,43 +557,43 @@ fn @get_type0_row_sel(loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fu
     }
 }
 
-fn @new_type0_col_selection(swin: Win2D, loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fun_type, bh_lower: BoundaryFn, bh_upper: BoundaryFn) -> col_selection {
-    let (lower_low, lower_high) = get_bounds_fun(Boundary::Lower);
-    let (upper_low, upper_high) = get_bounds_fun(Boundary::Upper);
-    let lower_regs = new_regs2d((lower_low, 0), (lower_high, swin.height));
-    let upper_regs = new_regs2d((upper_low, 0), (upper_high, swin.height));
-
-    fn @read_fun(x: i32, y: i32) -> pixel_t {
-             if x > upper_low - 1 && x < upper_high { upper_regs.read(x, y) }
-        else if x > lower_low - 1 && x < lower_high { lower_regs.read(x, y) }
-        else { swin.read(x, y) }
-    }
-
-    fn @write_fun(x: i32, y: i32, din: pixel_t) -> () {
-        if      x > upper_low - 1 && x < upper_high { upper_regs.write(x, y, din) }
-        else if x > lower_low - 1 && x < lower_high { lower_regs.write(x, y, din) }
-        else {}
-    }
-
-    fn @brdr_assigns(xw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
-        for yw in unroll(0, swin.height) {
-            fn @get_fun(i: i32) -> pixel_t { swin.read(i, yw) };
-            let pix_bh = read_pixel_bh(xw, get_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
-            write_fun(xw, yw, pix_bh);
-        }
-    }
-
-    fn @update(col_ridx: i32) -> () {
-        for boundary in iterate1d_atborders() {
-            bh_type0($col_ridx, boundary, loop_schedule, get_bounds_fun, brdr_assigns);
-        }
-    }
-
-    col_selection {
-        get_read_fn = @|v| { @|x, y| read_fun(x + v, y) },
-        update      = update
-    }
-}
+//fn @new_type0_col_selection[T](swin: Win2D, loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> col_selection {
+//    let (lower_low, lower_high) = get_bounds_fun(Boundary::Lower);
+//    let (upper_low, upper_high) = get_bounds_fun(Boundary::Upper);
+//    let lower_regs = new_regs2d((lower_low, 0), (lower_high, swin.height));
+//    let upper_regs = new_regs2d((upper_low, 0), (upper_high, swin.height));
+//
+//    fn @read_fun(x: i32, y: i32) -> pixel_t {
+//             if x > upper_low - 1 && x < upper_high { upper_regs.read(x, y) }
+//        else if x > lower_low - 1 && x < lower_high { lower_regs.read(x, y) }
+//        else { swin.read(x, y) }
+//    }
+//
+//    fn @write_fun(x: i32, y: i32, din: pixel_t) -> () {
+//        if      x > upper_low - 1 && x < upper_high { upper_regs.write(x, y, din) }
+//        else if x > lower_low - 1 && x < lower_high { lower_regs.write(x, y, din) }
+//        else {}
+//    }
+//
+//    fn @brdr_assigns[T](xw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
+//        for yw in unroll(0, swin.height) {
+//            fn @get_fun(i: i32) -> pixel_t { swin.read(i, yw) };
+//            let pix_bh = read_pixel_bh[T](xw, get_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
+//            write_fun(xw, yw, pix_bh);
+//        }
+//    }
+//
+//    fn @update(col_ridx: i32) -> () {
+//        for boundary in iterate1d_atborders() {
+//            bh_type0($col_ridx, boundary, loop_schedule, get_bounds_fun, brdr_assigns);
+//        }
+//    }
+//
+//    col_selection {
+//        get_read_fn = @|v| { @|x, y| read_fun(x + v, y) },
+//        update      = update
+//    }
+//}
 
 //  -------------------  Loop Coarsening  ----------------------
 fn @get_stencil_mask(mask: Mask) -> StencilMask {
@@ -592,277 +605,277 @@ fn @get_stencil_mask(mask: Mask) -> StencilMask {
     }
 }
 
-fn @FetchAndCalc(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-    let mask = get_stencil_mask(mask_in);
-    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-    let swin_width = mask.size_x + pFactor - 1;
-    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
-    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+//fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+//    let mask = get_stencil_mask(mask_in);
+//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+//    let swin_width = mask.size_x + pFactor - 1;
+//    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
+//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+//
+//    // border handling row selection
+//    let input_row_schedule = LoopCircular {
+//        interv = Interval1d {start = mask.upper_y,  end = in_s.height + mask.upper_y + 1}, // loop index
+//        roi  = RoI1d       {  o_x = mask.upper_y, width = in_s.height},                   // image region
+//        pFactor = 1
+//    };
+//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+//
+//    // On Chip Memory Architecture
+//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
+//    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_stride, swin_width, row_sel_fun, bh_lower, bh_upper);
+//
+//    // border handling col selection
+//    let input_col_schedule = LoopCircular {
+//        interv = Interval1d { start = 0,           end = in_s.stride }, // loop index
+//        roi  =      RoI1d { o_x = mask.upper_x, width = in_s.width },  // image region
+//        pFactor = in_s.pFactor
+//    };
+//    let right_padding = in_s.stride - in_s.width;
+//    let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
+//    let col_sel_type0 = new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper);
+//
+//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
+//        swin.update($col_ridx, $row_ridx);
+//        col_sel_type0.update($col_ridx);
+//
+//        for v in unroll(0, pFactor) {
+//            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+//            let out_acc = Acc[T] { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
+//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+//            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
+//        }
+//    };
+//
+//    let process_time  = crsn_stride * in_s.height;
+//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+//    let life_time     = initial_delay + process_time;
+//    let mut col_ridx = 0;
+//    let mut row_ridx = 0; // border handling
+//    Hardware {
+//        at_read   = |ridx| { in_s.update($ridx); },
+//        at_always = |ridx| { process($col_ridx, $row_ridx); },
+//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+//        at_update = |ridx| {
+//            col_ridx++;
+//            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++;}
+//        },
+//        initial_delay = initial_delay,
+//        read_time = process_time,
+//        life_time = life_time
+//    }
+//}
 
-    // border handling row selection
-    let input_row_schedule = LoopCircular {
-        interv = Interval1d {start = mask.upper_y,  end = in_s.height + mask.upper_y + 1}, // loop index
-        roi  = RoI1d       {  o_x = mask.upper_y, width = in_s.height},                   // image region
-        pFactor = 1
-    };
-    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+//fn @CalcAndPack(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+//    let mask = get_stencil_mask(mask_in);
+//    let swin_width = mask.size_x + pFactor - 1;
+//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+//
+//    // Border_handling
+//    let input_row_schedule = LoopCircular {
+//        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+//        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+//        pFactor = 1
+//    };
+//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+//
+//    // On Chip Memory Architecture
+//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
+//    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_width, swin_width, row_sel_fun, bh_lower, bh_upper);
+//
+//    // Constants for Packing
+//    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
+//    let pack_offset = pFactor - delay_width;
+//    let vec_delayed = new_databeat(delay_width);
+//
+//    let right_padding = in_s.stride - in_s.width;
+//    let col_sel_type0 = {
+//        let interv = Interval1d { start = 0, end = in_s.stride };
+//        if pack_offset == pFactor {
+//            let input_col_schedule = LoopCircular {
+//                interv = interv, pFactor = in_s.pFactor,
+//                roi = RoI1d { o_x = mask.lower_x, width = in_s.width }};
+//            let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
+//            new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper)
+//        } else {
+//            let input_col_schedule1 = LoopCircular {
+//                interv = interv, pFactor = in_s.pFactor,
+//                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width + pFactor}};
+//            let input_col_schedule2 = LoopCircular {
+//                interv = interv, pFactor = in_s.pFactor,
+//                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width}};
+//            let upper_low  = pack_offset + mask.upper_x;
+//            let win_upper_col_bounds = new_bounds(0, 0, upper_low - right_padding, upper_low + mask.upper_x);
+//            let win_lower_col_bounds = new_bounds(upper_low - mask.upper_x, upper_low, swin_width - right_padding, swin_width);
+//            let upper = new_type0_col_selection(swin, input_col_schedule1, win_upper_col_bounds, bh_lower, bh_upper);
+//            let lower = new_type0_col_selection(swin, input_col_schedule2, win_lower_col_bounds, bh_lower, bh_upper);
+//           col_selection {
+//               get_read_fn = @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
+//               update      = @|idx| { upper.update(idx); lower.update(idx); }
+//           }
+//        }
+//    };
+//
+//    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
+//        @|x, y, data| {
+//            if  v < pack_offset {
+//                let pack_idx =  v + delay_width;
+//                out_s.write(pack_idx, data);
+//            } else {
+//                let pack_idx =  v - pack_offset;
+//                out_s.write(pack_idx, vec_delayed.read(pack_idx));
+//                vec_delayed.write(pack_idx, data);
+//            }
+//        }
+//    }
+//
+//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
+//        swin.update($col_ridx, $row_ridx);
+//        col_sel_type0.update($col_ridx);
+//
+//        for v in unroll(0, pFactor) {
+//            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+//            let out_acc = Acc[T] { read = @|x, y| 0 as pixel_t, write = pack(v) };
+//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+//            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
+//        }
+//    }
+//
+//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+//    let process_time  = crsn_stride * in_s.height;
+//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+//    let life_time     = initial_delay + process_time;
+//
+//    let mut col_ridx = 0;
+//    let mut row_ridx = 0; // border handling
+//
+//    Hardware {
+//        at_read   = |ridx| { in_s.update($ridx); },
+//        at_always = |ridx| { process($col_ridx, $row_ridx); },
+//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+//        at_update = |ridx| {
+//            col_ridx++;
+//            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++; }
+//        },
+//        initial_delay = initial_delay,
+//        read_time = process_time,
+//        life_time = life_time
+//    }
+//}
 
-    // On Chip Memory Architecture
-    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_stride, swin_width, row_sel_fun, bh_lower, bh_upper);
-
-    // border handling col selection
-    let input_col_schedule = LoopCircular {
-        interv = Interval1d { start = 0,           end = in_s.stride }, // loop index
-        roi  =      RoI1d { o_x = mask.upper_x, width = in_s.width },  // image region
-        pFactor = in_s.pFactor
-    };
-    let right_padding = in_s.stride - in_s.width;
-    let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
-    let col_sel_type0 = new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper);
-
-    fn @process(col_ridx: i32, row_ridx: i32) -> () {
-        swin.update($col_ridx, $row_ridx);
-        col_sel_type0.update($col_ridx);
-
-        for v in unroll(0, pFactor) {
-            let win_acc = Acc { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
-            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
-            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
-        }
-    };
-
-    let process_time  = crsn_stride * in_s.height;
-    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-    let life_time     = initial_delay + process_time;
-    let mut col_ridx = 0;
-    let mut row_ridx = 0; // border handling
-    Hardware {
-        at_read   = |ridx| { in_s.update($ridx); },
-        at_always = |ridx| { process($col_ridx, $row_ridx); },
-        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-        at_update = |ridx| {
-            col_ridx++;
-            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++;}
-        },
-        initial_delay = initial_delay,
-        read_time = process_time,
-        life_time = life_time
-    }
-}
-
-fn @CalcAndPack(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-    let mask = get_stencil_mask(mask_in);
-    let swin_width = mask.size_x + pFactor - 1;
-    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-
-    // Border_handling
-    let input_row_schedule = LoopCircular {
-        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
-        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
-        pFactor = 1
-    };
-    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
-
-    // On Chip Memory Architecture
-    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_width, swin_width, row_sel_fun, bh_lower, bh_upper);
-
-    // Constants for Packing
-    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
-    let pack_offset = pFactor - delay_width;
-    let vec_delayed = new_databeat(delay_width);
-
-    let right_padding = in_s.stride - in_s.width;
-    let col_sel_type0 = {
-        let interv = Interval1d { start = 0, end = in_s.stride };
-        if pack_offset == pFactor {
-            let input_col_schedule = LoopCircular {
-                interv = interv, pFactor = in_s.pFactor,
-                roi = RoI1d { o_x = mask.lower_x, width = in_s.width }};
-            let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
-            new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper)
-        } else {
-            let input_col_schedule1 = LoopCircular {
-                interv = interv, pFactor = in_s.pFactor,
-                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width + pFactor}};
-            let input_col_schedule2 = LoopCircular {
-                interv = interv, pFactor = in_s.pFactor,
-                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width}};
-            let upper_low  = pack_offset + mask.upper_x;
-            let win_upper_col_bounds = new_bounds(0, 0, upper_low - right_padding, upper_low + mask.upper_x);
-            let win_lower_col_bounds = new_bounds(upper_low - mask.upper_x, upper_low, swin_width - right_padding, swin_width);
-            let upper = new_type0_col_selection(swin, input_col_schedule1, win_upper_col_bounds, bh_lower, bh_upper);
-            let lower = new_type0_col_selection(swin, input_col_schedule2, win_lower_col_bounds, bh_lower, bh_upper);
-           col_selection {
-               get_read_fn = @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
-               update      = @|idx| { upper.update(idx); lower.update(idx); }
-           }
-        }
-    };
-
-    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
-        @|x, y, data| {
-            if  v < pack_offset {
-                let pack_idx =  v + delay_width;
-                out_s.write(pack_idx, data);
-            } else {
-                let pack_idx =  v - pack_offset;
-                out_s.write(pack_idx, vec_delayed.read(pack_idx));
-                vec_delayed.write(pack_idx, data);
-            }
-        }
-    }
-
-    fn @process(col_ridx: i32, row_ridx: i32) -> () {
-        swin.update($col_ridx, $row_ridx);
-        col_sel_type0.update($col_ridx);
-
-        for v in unroll(0, pFactor) {
-            let win_acc = Acc { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
-            let out_acc = Acc { read = @|x, y| 0 as pixel_t, write = pack(v) };
-            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
-        }
-    }
-
-    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-    let process_time  = crsn_stride * in_s.height;
-    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-    let life_time     = initial_delay + process_time;
-
-    let mut col_ridx = 0;
-    let mut row_ridx = 0; // border handling
-
-    Hardware {
-        at_read   = |ridx| { in_s.update($ridx); },
-        at_always = |ridx| { process($col_ridx, $row_ridx); },
-        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-        at_update = |ridx| {
-            col_ridx++;
-            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++; }
-        },
-        initial_delay = initial_delay,
-        read_time = process_time,
-        life_time = life_time
-    }
-}
-
-fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-    let mask = get_stencil_mask(mask_in);
-    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-    let swin_width = mask.size_x + pFactor - 1;
-    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
-    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-
-    // On Chip Memory Architecture
-    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-    let swin = new_sliding_win(lbufs, swin_stride, mask.size_y);
-
-    fn @process(col_ridx: i32, row_ridx: i32) -> () {
-        swin.update($col_ridx, $row_ridx);
-
-        for v in unroll(0, pFactor) {
-            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
-            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
-            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
-        }
-    };
-
-    let process_time  = crsn_stride * in_s.height;
-    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-    let life_time     = initial_delay + process_time;
-    //let mut col_ridx = 0;
-    Hardware {
-        at_read   = |ridx| { in_s.update($ridx); },
-        at_always = |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
-        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-        at_update = |ridx| {
-            /*col_ridx++;
-            if col_ridx == crsn_stride { col_ridx = 0; }*/
-        },
-        initial_delay = initial_delay,
-        read_time = process_time,
-        life_time = life_time
-    }
-}
+//fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+//    let mask = get_stencil_mask(mask_in);
+//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+//    let swin_width = mask.size_x + pFactor - 1;
+//    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
+//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+//
+//    // On Chip Memory Architecture
+//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
+//    let swin = new_sliding_win(lbufs, swin_stride, mask.size_y);
+//
+//    fn @process(col_ridx: i32, row_ridx: i32) -> () {
+//        swin.update($col_ridx, $row_ridx);
+//
+//        for v in unroll(0, pFactor) {
+//            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+//            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
+//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+//            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
+//        }
+//    };
+//
+//    let process_time  = crsn_stride * in_s.height;
+//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+//    let life_time     = initial_delay + process_time;
+//    //let mut col_ridx = 0;
+//    Hardware {
+//        at_read   = |ridx| { in_s.update($ridx); },
+//        at_always = |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
+//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+//        at_update = |ridx| {
+//            /*col_ridx++;
+//            if col_ridx == crsn_stride { col_ridx = 0; }*/
+//        },
+//        initial_delay = initial_delay,
+//        read_time = process_time,
+//        life_time = life_time
+//    }
+//}
 
 
-fn @CalcAndPack_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-    let mask = get_stencil_mask(mask_in);
-    let swin_width = mask.size_x + pFactor - 1;
-    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-
-    // Border_handling
-    let input_row_schedule = LoopCircular {
-        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
-        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
-        pFactor = 1
-    };
-    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
-
-    // On Chip Memory Architecture
-    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-    let swin = new_sliding_win(lbufs, swin_width, mask.size_y);
-
-    // Constants for Packing
-    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
-    let pack_offset = pFactor - delay_width;
-    let vec_delayed = new_databeat(delay_width);
-
-    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
-        @|x, y, data| {
-            if  v < pack_offset {
-                let pack_idx =  v + delay_width;
-                out_s.write(pack_idx, data);
-            } else {
-                let pack_idx =  v - pack_offset;
-                out_s.write(pack_idx, vec_delayed.read(pack_idx));
-                vec_delayed.write(pack_idx, data);
-            }
-        }
-    }
-
-    fn @process(col_ridx: i32, row_ridx: i32) -> () {
-        swin.update($col_ridx, $row_ridx);
-
-        for v in unroll(0, pFactor) {
-            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
-            let out_acc = Acc { read = @|x, y| 0 as pixel_t, write = pack(v) };
-            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
-        }
-    }
-
-    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-    let process_time  = crsn_stride * in_s.height;
-    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-    let life_time     = initial_delay + process_time;
-
-    let mut col_ridx = 0;
-    Hardware {
-        at_read   = |ridx| { in_s.update($ridx); },
-        at_always = |ridx| { process($col_ridx, 0); },
-        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-        at_update = |ridx| {
-            col_ridx++;
-            if col_ridx == crsn_stride { col_ridx = 0;}
-        },
-        initial_delay = initial_delay,
-        read_time = process_time,
-        life_time = life_time
-    }
-}
+//fn @CalcAndPack_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
+//    let mask = get_stencil_mask(mask_in);
+//    let swin_width = mask.size_x + pFactor - 1;
+//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+//
+//    // Border_handling
+//    let input_row_schedule = LoopCircular {
+//        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+//        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+//        pFactor = 1
+//    };
+//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+//
+//    // On Chip Memory Architecture
+//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
+//    let swin = new_sliding_win(lbufs, swin_width, mask.size_y);
+//
+//    // Constants for Packing
+//    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
+//    let pack_offset = pFactor - delay_width;
+//    let vec_delayed = new_databeat(delay_width);
+//
+//    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
+//        @|x, y, data| {
+//            if  v < pack_offset {
+//                let pack_idx =  v + delay_width;
+//                out_s.write(pack_idx, data);
+//            } else {
+//                let pack_idx =  v - pack_offset;
+//                out_s.write(pack_idx, vec_delayed.read(pack_idx));
+//                vec_delayed.write(pack_idx, data);
+//            }
+//        }
+//    }
+//
+//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
+//        swin.update($col_ridx, $row_ridx);
+//
+//        for v in unroll(0, pFactor) {
+//            let win_acc = Acc[T] { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+//            let out_acc = Acc[T] { read = @|x, y| 0 as pixel_t, write = pack(v) };
+//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+//            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
+//        }
+//    }
+//
+//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+//    let process_time  = crsn_stride * in_s.height;
+//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+//    let life_time     = initial_delay + process_time;
+//
+//    let mut col_ridx = 0;
+//    Hardware {
+//        at_read   = |ridx| { in_s.update($ridx); },
+//        at_always = |ridx| { process($col_ridx, 0); },
+//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+//        at_update = |ridx| {
+//            col_ridx++;
+//            if col_ridx == crsn_stride { col_ridx = 0;}
+//        },
+//        initial_delay = initial_delay,
+//        read_time = process_time,
+//        life_time = life_time
+//    }
+//}
 
 //  ------------------- Stencil Processing ---------------------
 fn @pipeline2d(hw: Hardware) -> () {
     // Optimize away the read condition if not needed
-    let at_read_ = @|idx|{
+    let at_read_ = @|idx:i32|{
         if(hw.read_time == hw.life_time) {
             hw.at_read($idx)
         } else {
@@ -871,7 +884,7 @@ fn @pipeline2d(hw: Hardware) -> () {
     };
 
     // Optimize away the write condition if not needed
-    let at_write_ = @|idx|{
+    let at_write_ = @|idx:i32|{
         if(hw.initial_delay == 0) {
             hw.at_write($idx)
         } else {
@@ -902,36 +915,36 @@ fn @pipeline2d(hw: Hardware) -> () {
 // ---------------------------------------------------------------------------
 // ----------------------- Local/Point Operators -----------------------------
 // ---------------------------------------------------------------------------
-fn @iteration(math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> () {
+//fn @iteration[T](math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> () {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out_dev = get_device_copy(out);
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            //FetchAndCalc, CalcAndPack, FetchAndCalc_nobh, CalcAndPack_nobh
+//            let coarsening_fun = coarsening_policy;
+//
+//            let in_s  = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let my_hardware = coarsening_fun(math, pFactor, in_s, out_s, mask, bh_lower, bh_upper, body);
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}
+
+fn @iteration_point[T](body: fn(Intrinsics, i32, i32, Acc[T], T) -> ()) = @|math: Intrinsics, out: Img, arr: Img| {
     let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out_dev = get_device_copy(out);
+    let arr_dev = get_device_copy[T](arr);
+    let out_dev = get_device_copy[T](out);
 
     for benchmark_fpga(get_device_sync(out)) {
         for work_item in acc.exec((1,1,1), (1,1,1)) {
             let pFactor = get_vector_length();
-            //FetchAndCalc, CalcAndPack, FetchAndCalc_nobh, CalcAndPack_nobh
-            let coarsening_fun = coarsening_policy;
-
-            let in_s  = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let my_hardware = coarsening_fun(math, pFactor, in_s, out_s, mask, bh_lower, bh_upper, body);
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
-
-fn @iteration_point(math: Intrinsics, out: Img, arr: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out_dev = get_device_copy(out);
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in_s = Img_to_Mem2D_read(arr_dev, get_vector_length());
+            let out_s = Img_to_Mem2D_write[T](out_dev, get_vector_length());
+            let in_s = Img_to_Mem2D_read[T](arr_dev, get_vector_length());
 
             let life_time  = out_s.stride * out_s.height / pFactor;
             let my_hardware = Hardware {
@@ -939,7 +952,8 @@ fn @iteration_point(math: Intrinsics, out: Img, arr: Img, body: fn(Intrinsics, i
                 at_write  = |ridx| { out_s.update($ridx); },
                 at_always = |ridx| {
                     for v in unroll(0, pFactor) {
-                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        //let out_acc = Acc[pixel_t] { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+                        let out_acc = Acc[T] { read = |x, y| bitcast[T](0), write = @|x, y, data| out_s.write(v, data) };
                         @body(math, 0, 0, out_acc, in_s.read(v));
                     }
                 },
@@ -952,539 +966,539 @@ fn @iteration_point(math: Intrinsics, out: Img, arr: Img, body: fn(Intrinsics, i
         }
     }
     get_host_copy(out_dev, out);
-}
+};
 
-fn @iteration_point2(math: Intrinsics, out: Img, arr0: Img, arr1: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr0_dev = get_device_copy(arr0);
-    let arr1_dev = get_device_copy(arr1);
-    let out_dev = get_device_copy(out);
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
-            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
-
-            let life_time  = out_s.stride * out_s.height / pFactor;
-            let my_hardware = Hardware {
-                at_read   = |ridx| {
-                    in0_s.update($ridx);
-                    in1_s.update($ridx);
-                },
-                at_write  = |ridx| { out_s.update($ridx); },
-                at_always = |ridx| {
-                    for v in unroll(0, pFactor) {
-                        let in0 = in0_s.read(v);
-                        let in1 = in1_s.read(v);
-                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
-                        @body(math, 0, 0, out_acc, in0, in1);
-                    }
-                },
-                at_update = |_| (),
-                initial_delay = 0,
-                read_time = life_time,
-                life_time = life_time
-            };
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
-
-fn @iteration_point3(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr0_dev = get_device_copy(arr0);
-    let arr1_dev = get_device_copy(arr1);
-    let arr2_dev = get_device_copy(arr2);
-    let out_dev = get_device_copy(out);
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
-            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
-            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
-
-            let life_time  = out_s.stride * out_s.height / pFactor;
-            let my_hardware = Hardware {
-                at_read   = |ridx| {
-                    in0_s.update($ridx);
-                    in1_s.update($ridx);
-                    in2_s.update($ridx);
-                },
-                at_write  = |ridx| { out_s.update($ridx); },
-                at_always = |ridx| {
-                    for v in unroll(0, pFactor) {
-                        let in0 = in0_s.read(v);
-                        let in1 = in1_s.read(v);
-                        let in2 = in2_s.read(v);
-                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
-                        @body(math, 0, 0, out_acc, in0, in1, in2);
-                    }
-                },
-                at_update = |_|(),
-                initial_delay = 0,
-                read_time = life_time,
-                life_time = life_time
-            };
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
-
-fn @iteration_point4(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, arr3: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t, pixel_t) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr0_dev = get_device_copy(arr0);
-    let arr1_dev = get_device_copy(arr1);
-    let arr2_dev = get_device_copy(arr2);
-    let arr3_dev = get_device_copy(arr3);
-    let out_dev = get_device_copy(out);
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
-            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
-            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
-            let in3_s = Img_to_Mem2D_read(arr3_dev, get_vector_length());
-
-            let life_time  = out_s.stride * out_s.height / pFactor;
-            let my_hardware = Hardware {
-                at_read   = |ridx| {
-                    in0_s.update($ridx);
-                    in1_s.update($ridx);
-                    in2_s.update($ridx);
-                    in3_s.update($ridx);
-                },
-                at_write  = |ridx| { out_s.update($ridx); },
-                at_always = |ridx| {
-                    for v in unroll(0, pFactor) {
-                        let in0 = in0_s.read(v);
-                        let in1 = in1_s.read(v);
-                        let in2 = in2_s.read(v);
-                        let in3 = in3_s.read(v);
-                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
-                        @body(math, 0, 0, out_acc, in0, in1, in2, in3);
-                    }
-                },
-                at_update = |_|(),
-                initial_delay = 0,
-                read_time = life_time,
-                life_time = life_time
-            };
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
-
-fn @iteration_point5(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, arr3: Img, arr4: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t, pixel_t, pixel_t) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr0_dev = get_device_copy(arr0);
-    let arr1_dev = get_device_copy(arr1);
-    let arr2_dev = get_device_copy(arr2);
-    let arr3_dev = get_device_copy(arr3);
-    let arr4_dev = get_device_copy(arr4);
-    let out_dev = get_device_copy(out);
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
-            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
-            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
-            let in3_s = Img_to_Mem2D_read(arr3_dev, get_vector_length());
-            let in4_s = Img_to_Mem2D_read(arr4_dev, get_vector_length());
-
-            let life_time  = out_s.stride * out_s.height / pFactor;
-            let my_hardware = Hardware {
-                at_read   = |ridx| {
-                    in0_s.update($ridx);
-                    in1_s.update($ridx);
-                    in2_s.update($ridx);
-                    in3_s.update($ridx);
-                    in4_s.update($ridx);
-                },
-                at_write  = |ridx| { out_s.update($ridx); },
-                at_always = |ridx| {
-                    for v in unroll(0, pFactor) {
-                        let in0 = in0_s.read(v);
-                        let in1 = in1_s.read(v);
-                        let in2 = in2_s.read(v);
-                        let in3 = in3_s.read(v);
-                        let in4 = in4_s.read(v);
-                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
-                        @body(math, 0, 0, out_acc, in0, in1, in2, in3, in4);
-                    }
-                },
-                at_update = |_|(),
-                initial_delay = 0,
-                read_time = life_time,
-                life_time = life_time
-            };
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
-
-fn @iteration_point1to2(math: Intrinsics, out0: Img, out1: Img, arr: Img, body: fn(Intrinsics, i32, i32, pixel_t, Acc, Acc) -> ()) -> () {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0_dev = get_device_copy(out0);
-    let out1_dev = get_device_copy(out1);
-
-    for benchmark_fpga(get_device_sync2(out0, out1)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let pFactor = get_vector_length();
-            let out0_s = Img_to_Mem2D_write(out0_dev, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1_dev, get_vector_length());
-            let in_s = Img_to_Mem2D_read(arr_dev, get_vector_length());
-
-            let life_time  = out0_s.stride * out0_s.height / pFactor;
-            let my_hardware = Hardware {
-                at_read   = |ridx| {
-                    in_s.update($ridx);
-                },
-                at_write  = |ridx| {
-                    out0_s.update($ridx);
-                    out1_s.update($ridx);
-                },
-                at_always = |ridx| {
-                    for v in unroll(0, pFactor) {
-                        let din = in_s.read(v);
-                        let out_acc0 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out0_s.write(v, data) };
-                        let out_acc1 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out1_s.write(v, data) };
-                        @body(math, 0, 0, din, out_acc0, out_acc1);
-                    }
-                },
-                at_update = |_| (),
-                initial_delay = 0,
-                read_time = life_time,
-                life_time = life_time
-            };
-            pipeline2d(my_hardware);
-        }
-    }
-    get_host_copy(out0_dev, out0);
-    get_host_copy(out1_dev, out1);
-}
-
-fn @split_image(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe) -> (Img, Img) {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-
-    let pFactor = get_vector_length();
-    let image_size = (arr.height * (arr.stride / pFactor) );
-    for benchmark_fpga(get_device_sync(out0)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
-
-            for idx in auto_pipeline(0, image_size) {
-                in_s.update(idx);
-                for v in unroll(0, pFactor) {
-                    let data = in_s.read(v);
-                    out0_s.write(v, data);
-                    out1_s.write(v, data);
-                }
-                out0_s.update(idx);
-                out1_s.update(idx);
-            }
-        }
-    }
-    (out0, out1)
-}
-
-fn @split_image3(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe) -> (Img, Img, Img) {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
-
-    let pFactor = get_vector_length();
-    let image_size = (arr.height * (arr.stride / pFactor) );
-    for benchmark_fpga(get_device_sync(out0)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
-            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
-
-            for idx in auto_pipeline(0, image_size) {
-                in_s.update(idx);
-                for v in unroll(0, pFactor) {
-                    let data = in_s.read(v);
-                    out0_s.write(v, data);
-                    out1_s.write(v, data);
-                    out2_s.write(v, data);
-                }
-                out0_s.update(idx);
-                out1_s.update(idx);
-                out2_s.update(idx);
-            }
-        }
-    }
-    (out0, out1, out2)
-}
-
-fn @split_image5(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
-pipe4: &mut pipe) -> (Img, Img, Img, Img, Img) {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
-    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
-    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
-
-    let pFactor = get_vector_length();
-    let image_size = (arr.height * (arr.stride / pFactor) );
-    for benchmark_fpga(get_device_sync(out0)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
-            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
-            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
-            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
-
-            for idx in auto_pipeline(0, image_size) {
-                in_s.update(idx);
-                for v in unroll(0, pFactor) {
-                    let data = in_s.read(v);
-                    out0_s.write(v, data);
-                    out1_s.write(v, data);
-                    out2_s.write(v, data);
-                    out3_s.write(v, data);
-                    out4_s.write(v, data);
-                }
-                out0_s.update(idx);
-                out1_s.update(idx);
-                out2_s.update(idx);
-                out3_s.update(idx);
-                out4_s.update(idx);
-            }
-        }
-    }
-    (out0, out1, out2, out3, out4)
-}
-
-fn @split_image6(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
-pipe4: &mut pipe, pipe5: &mut pipe) -> (Img, Img, Img, Img, Img, Img) {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
-    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
-    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
-    let out5 = new_virtual_img(arr.width, arr.height, arr.stride, pipe5);
-
-    let pFactor = get_vector_length();
-    let image_size = (arr.height * (arr.stride / pFactor) );
-    for benchmark_fpga(get_device_sync(out0)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
-            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
-            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
-            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
-            let out5_s = Img_to_Mem2D_write(out5, get_vector_length());
-
-            for idx in auto_pipeline(0, image_size) {
-                in_s.update(idx);
-                for v in unroll(0, pFactor) {
-                    let data = in_s.read(v);
-                    out0_s.write(v, data);
-                    out1_s.write(v, data);
-                    out2_s.write(v, data);
-                    out3_s.write(v, data);
-                    out4_s.write(v, data);
-                    out5_s.write(v, data);
-                }
-                out0_s.update(idx);
-                out1_s.update(idx);
-                out2_s.update(idx);
-                out3_s.update(idx);
-                out4_s.update(idx);
-                out5_s.update(idx);
-            }
-        }
-    }
-    (out0, out1, out2, out3, out4, out5)
-}
-
-fn @split_image7(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
-pipe4: &mut pipe, pipe5: &mut pipe, pipe6: &mut pipe) -> (Img, Img, Img, Img, Img, Img, Img) {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
-    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
-    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
-    let out5 = new_virtual_img(arr.width, arr.height, arr.stride, pipe5);
-    let out6 = new_virtual_img(arr.width, arr.height, arr.stride, pipe6);
-
-    let pFactor = get_vector_length();
-    let image_size = (arr.height * (arr.stride / pFactor) );
-    for benchmark_fpga(get_device_sync(out0)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
-            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
-            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
-            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
-            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
-            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
-            let out5_s = Img_to_Mem2D_write(out5, get_vector_length());
-            let out6_s = Img_to_Mem2D_write(out6, get_vector_length());
-
-            for idx in auto_pipeline(0, image_size) {
-                in_s.update(idx);
-                for v in unroll(0, pFactor) {
-                    let data = in_s.read(v);
-                    out0_s.write(v, data);
-                    out1_s.write(v, data);
-                    out2_s.write(v, data);
-                    out3_s.write(v, data);
-                    out4_s.write(v, data);
-                    out5_s.write(v, data);
-                    out6_s.write(v, data);
-                }
-                out0_s.update(idx);
-                out1_s.update(idx);
-                out2_s.update(idx);
-                out3_s.update(idx);
-                out4_s.update(idx);
-                out5_s.update(idx);
-                out6_s.update(idx);
-            }
-        }
-    }
-    (out0, out1, out2, out3, out4, out5, out6)
-}
-
-// this function significantly increases compile time comparing with the above
-fn @split_image_point(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe) -> (Img, Img) {
-    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
-    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
-
-    fn @split(math: Intrinsics, x: i32, y: i32, din: pixel_t, dout0: Acc, dout1: Acc) -> () {
-        dout0.write(x, y, din);
-        dout1.write(x, y, din);
-    };
-    iteration_point1to2(math, out0, out1, arr, split);
-
-    (out0, out1)
-}
-
-
-// ---------------------------------------------------------------------------
-// ------------------------ Global Operators   ----------------------------------
-// ---------------------------------------------------------------------------
-fn @reduce_balanced(prev: regs1d, block: i32, body: fn(regs1d, i32, i32) -> pixel_t) -> pixel_t {
-    let size = (prev.end - prev.begin);
-
-    if (size < block + 1) {
-        @body(prev, prev.begin, prev.end)
-    } else {
-        let offset = (size % block);
-        let size_next = size / block + offset;
-        let next = concat_regs1d(prev, Interval1d{start = 0, end = offset}, new_regs1d(offset, size_next), Interval1d{start = offset, end = size_next});
-
-        for i in unroll_step(offset, size, block) {
-            next.write(i / block + offset, @body(prev, i, i + block));
-        }
-
-        reduce_balanced(next, block, body)
-    }
-}
-
-fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, body: fn(Intrinsics, pixel_t, pixel_t) -> pixel_t) -> () {
-    let acc = accelerator(device_id);
-    let arr_dev = get_device_copy(arr);
-    let out_dev = get_device_copy(out);
-
-    let block = 2:i32;
-    let pFactor = get_vector_length();
-
-    // reduce two inputs with the body function
-    fn @reduce_block(data: regs1d, start: i32, end : i32) -> pixel_t {
-        if (end - start) > 1 {
-            let mut result = @body(math, data.read(start), data.read(start + 1));
-            for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
-            result
-        } else if (end - start) == 1 {
-            data.read(start)
-        } else {
-            neutral
-        }
-    };
-
-    for benchmark_fpga(get_device_sync(out)) {
-        for work_item in acc.exec((1,1,1), (1,1,1)) {
-            let out_m = Img_to_Mem2D_write(out_dev, get_vector_length());
-            let in_m = Img_to_Mem2D_read(arr_dev, get_vector_length());
-
-            let crsn_stride = round_up(in_m.stride, pFactor) / pFactor;
-
-            // border handling
-            let bh_size = in_m.stride - in_m.width;
-            let bh_neccessary = if(bh_size > 0) { true } else { false };
-
-            let mut col_ridx = 0;
-            let mut bh_apply = false;
-
-            fn @col_update(ridx: i32) -> () {
-                if bh_neccessary == true {
-                    col_ridx++;
-                    if bh_apply == true { col_ridx = 0; bh_apply = false;}
-                    if col_ridx == crsn_stride - 1 { bh_apply = true; }
-                }
-            }
-
-            fn @border_handling(prev: regs1d) -> () {
-                if bh_neccessary == true {
-                    if $bh_apply == true { // I assume (stride -  width) <  pFactor
-                        for i in unroll(pFactor - bh_size, pFactor) {
-                           prev.write(i, neutral);
-                        }
-                    }
-                 }
-            }
-
-            let mut redval = neutral;
-            let my_hardware = Hardware {
-                at_read   = |ridx| { in_m.update($ridx); },
-                at_always = |ridx| {
-                    let prev = concat_regs1d(regs1d { write = in_m.write, read = in_m.read, begin = 0, end = pFactor }, Interval1d{start = 0, end = pFactor},
-                                             regs1d { write = |_, _|(), read = |_| { redval }, begin = 0, end = 1 }, Interval1d{start = 0, end = 1});
-                    border_handling(prev);
-                    redval = reduce_balanced(prev, block, reduce_block);
-                    //redval = reduce_block(prev, prev.begin, prev.end); // naive
-                    },
-                at_write  = |_| (),
-                at_update = col_update,
-                initial_delay = 0,
-                read_time = crsn_stride * in_m.height,
-                life_time = crsn_stride * in_m.height
-            };
-            pipeline2d(my_hardware);
-            out_m.write(0, redval);
-            out_m.update(0);
-        }
-    }
-    get_host_copy(out_dev, out);
-}
+//fn @iteration_point2(math: Intrinsics, out: Img, arr0: Img, arr1: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t) -> ()) -> () {
+//    let acc = accelerator(device_id);
+//    let arr0_dev = get_device_copy(arr0);
+//    let arr1_dev = get_device_copy(arr1);
+//    let out_dev = get_device_copy(out);
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
+//            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
+//
+//            let life_time  = out_s.stride * out_s.height / pFactor;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| {
+//                    in0_s.update($ridx);
+//                    in1_s.update($ridx);
+//                },
+//                at_write  = |ridx| { out_s.update($ridx); },
+//                at_always = |ridx| {
+//                    for v in unroll(0, pFactor) {
+//                        let in0 = in0_s.read(v);
+//                        let in1 = in1_s.read(v);
+//                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+//                        @body(math, 0, 0, out_acc, in0, in1);
+//                    }
+//                },
+//                at_update = |_| (),
+//                initial_delay = 0,
+//                read_time = life_time,
+//                life_time = life_time
+//            };
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}
+//
+//fn @iteration_point3(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t) -> ()) -> () {
+//    let acc = accelerator(device_id);
+//    let arr0_dev = get_device_copy(arr0);
+//    let arr1_dev = get_device_copy(arr1);
+//    let arr2_dev = get_device_copy(arr2);
+//    let out_dev = get_device_copy(out);
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
+//            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
+//            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
+//
+//            let life_time  = out_s.stride * out_s.height / pFactor;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| {
+//                    in0_s.update($ridx);
+//                    in1_s.update($ridx);
+//                    in2_s.update($ridx);
+//                },
+//                at_write  = |ridx| { out_s.update($ridx); },
+//                at_always = |ridx| {
+//                    for v in unroll(0, pFactor) {
+//                        let in0 = in0_s.read(v);
+//                        let in1 = in1_s.read(v);
+//                        let in2 = in2_s.read(v);
+//                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+//                        @body(math, 0, 0, out_acc, in0, in1, in2);
+//                    }
+//                },
+//                at_update = |_|(),
+//                initial_delay = 0,
+//                read_time = life_time,
+//                life_time = life_time
+//            };
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}
+//
+//fn @iteration_point4(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, arr3: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t, pixel_t) -> ()) -> () {
+//    let acc = accelerator(device_id);
+//    let arr0_dev = get_device_copy(arr0);
+//    let arr1_dev = get_device_copy(arr1);
+//    let arr2_dev = get_device_copy(arr2);
+//    let arr3_dev = get_device_copy(arr3);
+//    let out_dev = get_device_copy(out);
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
+//            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
+//            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
+//            let in3_s = Img_to_Mem2D_read(arr3_dev, get_vector_length());
+//
+//            let life_time  = out_s.stride * out_s.height / pFactor;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| {
+//                    in0_s.update($ridx);
+//                    in1_s.update($ridx);
+//                    in2_s.update($ridx);
+//                    in3_s.update($ridx);
+//                },
+//                at_write  = |ridx| { out_s.update($ridx); },
+//                at_always = |ridx| {
+//                    for v in unroll(0, pFactor) {
+//                        let in0 = in0_s.read(v);
+//                        let in1 = in1_s.read(v);
+//                        let in2 = in2_s.read(v);
+//                        let in3 = in3_s.read(v);
+//                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+//                        @body(math, 0, 0, out_acc, in0, in1, in2, in3);
+//                    }
+//                },
+//                at_update = |_|(),
+//                initial_delay = 0,
+//                read_time = life_time,
+//                life_time = life_time
+//            };
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}
+//
+//fn @iteration_point5(math: Intrinsics, out: Img, arr0: Img, arr1: Img, arr2: Img, arr3: Img, arr4: Img, body: fn(Intrinsics, i32, i32, Acc, pixel_t, pixel_t, pixel_t, pixel_t, pixel_t) -> ()) -> () {
+//    let acc = accelerator(device_id);
+//    let arr0_dev = get_device_copy(arr0);
+//    let arr1_dev = get_device_copy(arr1);
+//    let arr2_dev = get_device_copy(arr2);
+//    let arr3_dev = get_device_copy(arr3);
+//    let arr4_dev = get_device_copy(arr4);
+//    let out_dev = get_device_copy(out);
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let in0_s = Img_to_Mem2D_read(arr0_dev, get_vector_length());
+//            let in1_s = Img_to_Mem2D_read(arr1_dev, get_vector_length());
+//            let in2_s = Img_to_Mem2D_read(arr2_dev, get_vector_length());
+//            let in3_s = Img_to_Mem2D_read(arr3_dev, get_vector_length());
+//            let in4_s = Img_to_Mem2D_read(arr4_dev, get_vector_length());
+//
+//            let life_time  = out_s.stride * out_s.height / pFactor;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| {
+//                    in0_s.update($ridx);
+//                    in1_s.update($ridx);
+//                    in2_s.update($ridx);
+//                    in3_s.update($ridx);
+//                    in4_s.update($ridx);
+//                },
+//                at_write  = |ridx| { out_s.update($ridx); },
+//                at_always = |ridx| {
+//                    for v in unroll(0, pFactor) {
+//                        let in0 = in0_s.read(v);
+//                        let in1 = in1_s.read(v);
+//                        let in2 = in2_s.read(v);
+//                        let in3 = in3_s.read(v);
+//                        let in4 = in4_s.read(v);
+//                        let out_acc = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out_s.write(v, data) };
+//                        @body(math, 0, 0, out_acc, in0, in1, in2, in3, in4);
+//                    }
+//                },
+//                at_update = |_|(),
+//                initial_delay = 0,
+//                read_time = life_time,
+//                life_time = life_time
+//            };
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}
+//
+//fn @iteration_point1to2(math: Intrinsics, out0: Img, out1: Img, arr: Img, body: fn(Intrinsics, i32, i32, pixel_t, Acc, Acc) -> ()) -> () {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0_dev = get_device_copy(out0);
+//    let out1_dev = get_device_copy(out1);
+//
+//    for benchmark_fpga(get_device_sync2(out0, out1)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let pFactor = get_vector_length();
+//            let out0_s = Img_to_Mem2D_write(out0_dev, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1_dev, get_vector_length());
+//            let in_s = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//
+//            let life_time  = out0_s.stride * out0_s.height / pFactor;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| {
+//                    in_s.update($ridx);
+//                },
+//                at_write  = |ridx| {
+//                    out0_s.update($ridx);
+//                    out1_s.update($ridx);
+//                },
+//                at_always = |ridx| {
+//                    for v in unroll(0, pFactor) {
+//                        let din = in_s.read(v);
+//                        let out_acc0 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out0_s.write(v, data) };
+//                        let out_acc1 = Acc { read = |x, y| 0 as pixel_t, write = @|x, y, data| out1_s.write(v, data) };
+//                        @body(math, 0, 0, din, out_acc0, out_acc1);
+//                    }
+//                },
+//                at_update = |_| (),
+//                initial_delay = 0,
+//                read_time = life_time,
+//                life_time = life_time
+//            };
+//            pipeline2d(my_hardware);
+//        }
+//    }
+//    get_host_copy(out0_dev, out0);
+//    get_host_copy(out1_dev, out1);
+//}
+//
+//fn @split_image(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe) -> (Img, Img) {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//
+//    let pFactor = get_vector_length();
+//    let image_size = (arr.height * (arr.stride / pFactor) );
+//    for benchmark_fpga(get_device_sync(out0)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
+//
+//            for idx in auto_pipeline(0, image_size) {
+//                in_s.update(idx);
+//                for v in unroll(0, pFactor) {
+//                    let data = in_s.read(v);
+//                    out0_s.write(v, data);
+//                    out1_s.write(v, data);
+//                }
+//                out0_s.update(idx);
+//                out1_s.update(idx);
+//            }
+//        }
+//    }
+//    (out0, out1)
+//}
+//
+//fn @split_image3(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe) -> (Img, Img, Img) {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
+//
+//    let pFactor = get_vector_length();
+//    let image_size = (arr.height * (arr.stride / pFactor) );
+//    for benchmark_fpga(get_device_sync(out0)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
+//            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
+//
+//            for idx in auto_pipeline(0, image_size) {
+//                in_s.update(idx);
+//                for v in unroll(0, pFactor) {
+//                    let data = in_s.read(v);
+//                    out0_s.write(v, data);
+//                    out1_s.write(v, data);
+//                    out2_s.write(v, data);
+//                }
+//                out0_s.update(idx);
+//                out1_s.update(idx);
+//                out2_s.update(idx);
+//            }
+//        }
+//    }
+//    (out0, out1, out2)
+//}
+//
+//fn @split_image5(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
+//pipe4: &mut pipe) -> (Img, Img, Img, Img, Img) {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
+//    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
+//    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
+//
+//    let pFactor = get_vector_length();
+//    let image_size = (arr.height * (arr.stride / pFactor) );
+//    for benchmark_fpga(get_device_sync(out0)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
+//            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
+//            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
+//            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
+//
+//            for idx in auto_pipeline(0, image_size) {
+//                in_s.update(idx);
+//                for v in unroll(0, pFactor) {
+//                    let data = in_s.read(v);
+//                    out0_s.write(v, data);
+//                    out1_s.write(v, data);
+//                    out2_s.write(v, data);
+//                    out3_s.write(v, data);
+//                    out4_s.write(v, data);
+//                }
+//                out0_s.update(idx);
+//                out1_s.update(idx);
+//                out2_s.update(idx);
+//                out3_s.update(idx);
+//                out4_s.update(idx);
+//            }
+//        }
+//    }
+//    (out0, out1, out2, out3, out4)
+//}
+//
+//fn @split_image6(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
+//pipe4: &mut pipe, pipe5: &mut pipe) -> (Img, Img, Img, Img, Img, Img) {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
+//    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
+//    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
+//    let out5 = new_virtual_img(arr.width, arr.height, arr.stride, pipe5);
+//
+//    let pFactor = get_vector_length();
+//    let image_size = (arr.height * (arr.stride / pFactor) );
+//    for benchmark_fpga(get_device_sync(out0)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
+//            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
+//            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
+//            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
+//            let out5_s = Img_to_Mem2D_write(out5, get_vector_length());
+//
+//            for idx in auto_pipeline(0, image_size) {
+//                in_s.update(idx);
+//                for v in unroll(0, pFactor) {
+//                    let data = in_s.read(v);
+//                    out0_s.write(v, data);
+//                    out1_s.write(v, data);
+//                    out2_s.write(v, data);
+//                    out3_s.write(v, data);
+//                    out4_s.write(v, data);
+//                    out5_s.write(v, data);
+//                }
+//                out0_s.update(idx);
+//                out1_s.update(idx);
+//                out2_s.update(idx);
+//                out3_s.update(idx);
+//                out4_s.update(idx);
+//                out5_s.update(idx);
+//            }
+//        }
+//    }
+//    (out0, out1, out2, out3, out4, out5)
+//}
+//
+//fn @split_image7(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe, pipe2: &mut pipe, pipe3: &mut pipe,
+//pipe4: &mut pipe, pipe5: &mut pipe, pipe6: &mut pipe) -> (Img, Img, Img, Img, Img, Img, Img) {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//    let out2 = new_virtual_img(arr.width, arr.height, arr.stride, pipe2);
+//    let out3 = new_virtual_img(arr.width, arr.height, arr.stride, pipe3);
+//    let out4 = new_virtual_img(arr.width, arr.height, arr.stride, pipe4);
+//    let out5 = new_virtual_img(arr.width, arr.height, arr.stride, pipe5);
+//    let out6 = new_virtual_img(arr.width, arr.height, arr.stride, pipe6);
+//
+//    let pFactor = get_vector_length();
+//    let image_size = (arr.height * (arr.stride / pFactor) );
+//    for benchmark_fpga(get_device_sync(out0)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let in_s   = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//            let out0_s = Img_to_Mem2D_write(out0, get_vector_length());
+//            let out1_s = Img_to_Mem2D_write(out1, get_vector_length());
+//            let out2_s = Img_to_Mem2D_write(out2, get_vector_length());
+//            let out3_s = Img_to_Mem2D_write(out3, get_vector_length());
+//            let out4_s = Img_to_Mem2D_write(out4, get_vector_length());
+//            let out5_s = Img_to_Mem2D_write(out5, get_vector_length());
+//            let out6_s = Img_to_Mem2D_write(out6, get_vector_length());
+//
+//            for idx in auto_pipeline(0, image_size) {
+//                in_s.update(idx);
+//                for v in unroll(0, pFactor) {
+//                    let data = in_s.read(v);
+//                    out0_s.write(v, data);
+//                    out1_s.write(v, data);
+//                    out2_s.write(v, data);
+//                    out3_s.write(v, data);
+//                    out4_s.write(v, data);
+//                    out5_s.write(v, data);
+//                    out6_s.write(v, data);
+//                }
+//                out0_s.update(idx);
+//                out1_s.update(idx);
+//                out2_s.update(idx);
+//                out3_s.update(idx);
+//                out4_s.update(idx);
+//                out5_s.update(idx);
+//                out6_s.update(idx);
+//            }
+//        }
+//    }
+//    (out0, out1, out2, out3, out4, out5, out6)
+//}
+//
+//// this function significantly increases compile time comparing with the above
+//fn @split_image_point(math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &mut pipe) -> (Img, Img) {
+//    let out0 = new_virtual_img(arr.width, arr.height, arr.stride, pipe0);
+//    let out1 = new_virtual_img(arr.width, arr.height, arr.stride, pipe1);
+//
+//    fn @split(math: Intrinsics, x: i32, y: i32, din: pixel_t, dout0: Acc, dout1: Acc) -> () {
+//        dout0.write(x, y, din);
+//        dout1.write(x, y, din);
+//    };
+//    iteration_point1to2(math, out0, out1, arr, split);
+//
+//    (out0, out1)
+//}
+//
+//
+//// ---------------------------------------------------------------------------
+//// ------------------------ Global Operators   ----------------------------------
+//// ---------------------------------------------------------------------------
+//fn @reduce_balanced(prev: regs1d, block: i32, body: fn(regs1d, i32, i32) -> pixel_t) -> pixel_t {
+//    let size = (prev.end - prev.begin);
+//
+//    if (size < block + 1) {
+//        @body(prev, prev.begin, prev.end)
+//    } else {
+//        let offset = (size % block);
+//        let size_next = size / block + offset;
+//        let next = concat_regs1d(prev, Interval1d{start = 0, end = offset}, new_regs1d(offset, size_next), Interval1d{start = offset, end = size_next});
+//
+//        for i in unroll_step(offset, size, block) {
+//            next.write(i / block + offset, @body(prev, i, i + block));
+//        }
+//
+//        reduce_balanced(next, block, body)
+//    }
+//}
+//
+//fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, body: fn(Intrinsics, pixel_t, pixel_t) -> pixel_t) -> () {
+//    let acc = accelerator(device_id);
+//    let arr_dev = get_device_copy(arr);
+//    let out_dev = get_device_copy(out);
+//
+//    let block = 2:i32;
+//    let pFactor = get_vector_length();
+//
+//    // reduce two inputs with the body function
+//    fn @reduce_block(data: regs1d, start: i32, end : i32) -> pixel_t {
+//        if (end - start) > 1 {
+//            let mut result = @body(math, data.read(start), data.read(start + 1));
+//            for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
+//            result
+//        } else if (end - start) == 1 {
+//            data.read(start)
+//        } else {
+//            neutral
+//        }
+//    };
+//
+//    for benchmark_fpga(get_device_sync(out)) {
+//        for work_item in acc.exec((1,1,1), (1,1,1)) {
+//            let out_m = Img_to_Mem2D_write(out_dev, get_vector_length());
+//            let in_m = Img_to_Mem2D_read(arr_dev, get_vector_length());
+//
+//            let crsn_stride = round_up(in_m.stride, pFactor) / pFactor;
+//
+//            // border handling
+//            let bh_size = in_m.stride - in_m.width;
+//            let bh_neccessary = if(bh_size > 0) { true } else { false };
+//
+//            let mut col_ridx = 0;
+//            let mut bh_apply = false;
+//
+//            fn @col_update(ridx: i32) -> () {
+//                if bh_neccessary == true {
+//                    col_ridx++;
+//                    if bh_apply == true { col_ridx = 0; bh_apply = false;}
+//                    if col_ridx == crsn_stride - 1 { bh_apply = true; }
+//                }
+//            }
+//
+//            fn @border_handling(prev: regs1d) -> () {
+//                if bh_neccessary == true {
+//                    if $bh_apply == true { // I assume (stride -  width) <  pFactor
+//                        for i in unroll(pFactor - bh_size, pFactor) {
+//                           prev.write(i, neutral);
+//                        }
+//                    }
+//                 }
+//            }
+//
+//            let mut redval = neutral;
+//            let my_hardware = Hardware {
+//                at_read   = |ridx| { in_m.update($ridx); },
+//                at_always = |ridx| {
+//                    let prev = concat_regs1d(regs1d { write = in_m.write, read = in_m.read, begin = 0, end = pFactor }, Interval1d{start = 0, end = pFactor},
+//                                             regs1d { write = |_, _|(), read = |_| { redval }, begin = 0, end = 1 }, Interval1d{start = 0, end = 1});
+//                    border_handling(prev);
+//                    redval = reduce_balanced(prev, block, reduce_block);
+//                    //redval = reduce_block(prev, prev.begin, prev.end); // naive
+//                    },
+//                at_write  = |_| (),
+//                at_update = col_update,
+//                initial_delay = 0,
+//                read_time = crsn_stride * in_m.height,
+//                life_time = crsn_stride * in_m.height
+//            };
+//            pipeline2d(my_hardware);
+//            out_m.write(0, redval);
+//            out_m.update(0);
+//        }
+//    }
+//    get_host_copy(out_dev, out);
+//}

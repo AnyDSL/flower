@@ -1,33 +1,35 @@
-fn @channel_to_Mem2D_read(img: Img, pFactor: i32) -> Mem2D {
+fn @channel_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
     if(pFactor == 64) {
-        channel_to_Mem2D_read_vec64(img)
+        channel_to_Mem2D_read_vec64[T](img)
     } else {
-        undef[Mem2D]()
+        undef[Mem2D[T]]()
     }
 }
 
-fn @channel_to_Mem2D_write(img: Img, pFactor: i32) -> Mem2D {
+fn @channel_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
     if(pFactor == 64) {
-        channel_to_Mem2D_write_vec64(img)
+        channel_to_Mem2D_write_vec64[T](img)
     } else {
-        undef[Mem2D]()
+        undef[Mem2D[T]]()
     }
 }
 
-fn @channel_to_Mem2D_write_vec64(img: Img) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 64 ];
+fn @channel_to_Mem2D_write_vec64[T](img: Img) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t, .. 64 ];
+    let mut value = bitcast[[T * 64]]([0; 64]);
     let pFactor = 64;
-    fn @update(idx: i32) -> () { write_channel64(img.fifo, value); }
-    fn @read(idx: i32) -> pixel_t { value(idx) }
-    fn @write(idx: i32, din: pixel_t) -> () { value(idx) = din; }
-    create_Mem2D_from_img(img, 64, update, read, write)
+    fn @update(idx: i32) -> () { write_channel64[T](img.fifo, value); }
+    fn @read(idx: i32) -> T { value(idx) }
+    fn @write(idx: i32, din: T) -> () { value(idx) = din; }
+    create_Mem2D_from_img[T](img, 64, update, read, write)
 }
 
-fn @channel_to_Mem2D_read_vec64(img: Img) -> Mem2D {
-    let mut value = [ 0 as pixel_t, .. 64 ];
+fn @channel_to_Mem2D_read_vec64[T](img: Img) -> Mem2D[T] {
+    //let mut value = [ 0 as pixel_t, .. 64 ];
+    let mut value = bitcast[[T * 64]]([0; 64]);
     let pFactor = 64;
-    fn @update(idx: i32) -> () { value = read_channel64(img.fifo); }
-    fn @read(idx: i32) -> pixel_t { value(idx) }
-    fn @write(idx: i32, din: pixel_t) -> () { value(idx) = din; }
-    create_Mem2D_from_img(img, 64, update, read, write)
+    fn @update(idx: i32) -> () { value = read_channel64[T](img.fifo); }
+    fn @read(idx: i32) -> T { value(idx) }
+    fn @write(idx: i32, din: T) -> () { value(idx) = din; }
+    create_Mem2D_from_img[T](img, 64, update, read, write)
 }
