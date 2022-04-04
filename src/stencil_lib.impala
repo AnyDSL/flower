@@ -179,24 +179,16 @@ fn @read_pixel[T](x: i32, y: i32, region: Region, roi: RoI, read: fn(i32, i32) -
 
 // &   [pixel_t] on CPU/AVX
 // &[3][pixel_t] on CUDA/NVVM & OpenCL/AMDGPU
-fn @get_acc_bh_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
-    get_acc_bh_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0, region, bh_lower, bh_upper)
-}
-fn @get_acc_bh_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
-    Acc[T] {
+fn @get_acc_bh_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) = get_acc_bh_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0, region, bh_lower, bh_upper);
+fn @get_acc_bh_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) = Acc[T] {
         read  = @|x, y|    read_pixel[T](x + rox, y + roy, region, RoI { o_x = 0, o_y = 0, width = width, height = height }, @|x, y| { get_pixel(y * width + x) }, bh_lower, bh_upper),
         write = @|x, y, v| set_pixel((y + roy) * width + x + rox, v)
-    }
-}
-fn @get_acc_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32) -> Acc[T] {
-    get_acc_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0)
-}
-fn @get_acc_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, _height: i32, rox: i32, roy: i32) -> Acc[T] {
-    Acc[T] {
+    };
+fn @get_acc_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, height: i32) = get_acc_offset_memory[T](set_pixel, get_pixel, width, height, 0, 0);
+fn @get_acc_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, width: i32, _height: i32, rox: i32, roy: i32) = Acc[T] {
         read  = @|x, y|    get_pixel((y + roy) * width + x + rox),
         write = @|x, y, v| set_pixel((y + roy) * width + x + rox, v)
-    }
-}
+        };
 
 fn @sum_mask(size: i32, data: fn(i32) -> pixel_t) -> pixel_t {
     fn @sum_helper(i: i32, s: pixel_t) -> pixel_t {
