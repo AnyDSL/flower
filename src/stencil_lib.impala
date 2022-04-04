@@ -278,14 +278,12 @@ fn @display_image[T](arr : Acc[T], roi_x : i32, roi_y : i32) -> () {
     }
 }
 
-fn @get_RoI(offset_x: i32, offset_y: i32, width: i32, height: i32) -> RoI {
-    RoI {
+fn @get_RoI(offset_x: i32, offset_y: i32, width: i32, height: i32) = RoI {
         o_x    = offset_x,
         o_y    = offset_y,
         width  = width,
         height = height
-    }
-}
+    };
 
 fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32 {
     let mut err_x = 0;
