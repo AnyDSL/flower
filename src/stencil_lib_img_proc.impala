@@ -4,9 +4,7 @@
 // pipe support
 type pipe = i32;
 
-fn @create_virtual_img(width: i32, height: i32, _buf: &mut pipe) -> Img {
-    create_img(width, height, alloc_cpu)
-}
+fn @create_virtual_img(width: i32, height: i32, _buf: &mut pipe) = create_img(width, height, alloc_cpu);
 
 fn @create_host_img[T](width: i32, height: i32) -> Img {
     let stride = round_up(width, get_vector_length());
@@ -15,23 +13,16 @@ fn @create_host_img[T](width: i32, height: i32) -> Img {
 }
 
 // -------------------------- point operators ----------------------------------
-fn @split_image(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe) -> (Img, Img) {
-    (arr, arr)
-}
+fn @split_image(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe) = (arr, arr);
 
 
-fn @split_image3(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe) -> (Img, Img, Img) {
-    (arr, arr, arr)
-}
+fn @split_image3(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe) = (arr, arr, arr);
 
-fn @split_image5(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe) -> (Img, Img, Img, Img, Img) {
-    (arr, arr, arr, arr, arr)
-}
+
+fn @split_image5(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe) = (arr, arr, arr, arr, arr);
 
 fn @split_image6(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe,
-_out5: &mut pipe) -> (Img, Img, Img, Img, Img, Img) {
-    (arr, arr, arr, arr, arr, arr)
-}
+_out5: &mut pipe) = (arr, arr, arr, arr, arr, arr);
 // ---------------------------------------------------------------------------
 // Everything related with Img in stencil_lib
 // ---------------------------------------------------------------------------
@@ -42,22 +33,16 @@ struct Img {
     stride : i32,
 }
 
-fn @new_img(width: i32, height: i32, stride: i32, buf: Buffer) -> Img {
-    Img { buf = buf, width = width,  height = height, stride = stride }
-}
+fn @new_img(width: i32, height: i32, stride: i32, buf: Buffer) = Img { buf = buf, width = width,  height = height, stride = stride };
 
-fn @alloc_img[T](img: Img, alloc: fn(i64) -> Buffer) -> Img {
-    new_img(img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()))
-}
+fn @alloc_img[T](img: Img, alloc: fn(i64) -> Buffer) = new_img(img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()));
 
 fn @create_img(width: i32, height: i32, alloc: fn(i64) -> Buffer) -> Img {
     let stride = round_up(width, get_vector_length());
     new_img(width, height, stride, alloc((stride * height) as i64 * sizeof[pixel_t]()))
 }
 
-fn @copy_img(src: Img, dst: Img) -> () {
-    copy(src.buf, dst.buf)
-}
+fn @copy_img(src: Img, dst: Img) = copy(src.buf, dst.buf);
 
 // &   [pixel_t] on CPU/AVX
 // &[1][pixel_t] on CUDA/NVVM & OpenCL/AMDGPU
