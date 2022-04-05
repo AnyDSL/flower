@@ -1,10 +1,10 @@
-//static coarsening_policy = FetchAndCalc; // FetchAndCalc, FetchAndCalc_nobh, CalcAndPack, CalcAndPack_nobh;
+//static coarsening_policy = FetchAndCalc[T]; // FetchAndCalc, FetchAndCalc_nobh, CalcAndPack, CalcAndPack_nobh;
 
 // ---------------------------- types ------------------------------------------
 // border handling
 type Bounds = (i32, i32);
 type get_bounds_fun_type = fn(Boundary) -> Bounds;
-type pixel_read_type  = fn(i32, i32, Boundary, Bounds, fn(i32) -> pixel_t) -> pixel_t;
+type pixel_read_type[T]  = fn(i32, i32, Boundary, Bounds, fn(i32) -> T) -> T;
 type row_sel_fun_type = fn(i32, brdr_assigns_type) -> ();
 type crsn_type[T] = fn(Intrinsics, Mem2D[T], Mem2D[T], i32, Mask, i32, BoundaryFn[T], BoundaryFn[T], StencilFn[T]) -> coarsening_type;
 type brdr_assigns_type = fn(i32, Boundary, i32, i32) -> ();
@@ -61,8 +61,8 @@ struct RoI1d {
     o_x : i32,
     width : i32,
 }
-struct col_selection {
-    get_read_fn : fn(i32) -> fn(i32, i32) -> pixel_t,
+struct col_selection[T] {
+    get_read_fn : fn(i32) -> fn(i32, i32) -> T,
     update      : fn(i32) -> ()
 }
 struct coarsening_type {
@@ -91,10 +91,10 @@ fn @iterate1d_border(body: fn(Boundary) -> ()) = @|| {
     }
 };
 
-fn @iterate1d_atborders(body: fn(Boundary) -> ()) -> () {
+fn @iterate1d_atborders(body: fn(Boundary) -> ()) = @|| {
     @body(Boundary::Lower);
     @body(Boundary::Upper);
-}
+};
 
 //---------------------- HW pipelining -------------------------------------------
 fn @auto_pipeline(body: fn(i32) -> ()) = @|lower: i32, upper: i32, | {
@@ -103,9 +103,7 @@ fn @auto_pipeline(body: fn(i32) -> ()) = @|lower: i32, upper: i32, | {
 };
 
 // --------------------- memory copy functions --------------------------------
-fn @copy_img(src: Img, dst: Img) -> () {
-    copy_real_img(src, dst);
-}
+fn @copy_img(src: Img, dst: Img) = copy_real_img(src, dst);
 
 fn @copy_real_img(src: Img, dst: Img) -> () {
     if src.virtual == false {
@@ -427,38 +425,40 @@ fn @new_sliding_win[T](lbufs: Win2D[T], stride: i32, height: i32) -> Win2D[T] {
 
 // sliding window with row selection
 // todo: reduce the parameter list
-//fn @new_sliding_win_bh[T](lbufs: Win2D, height: i32, stride: i32, width : i32, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Win2D {
-//    let swin = new_regs2d((0, 0), (stride, height));
-//    let pFactor = lbufs.pFactor;
-//
-//    fn @brdr_assigns(yw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
-//        for xw in unroll(0, pFactor) {
-//            fn @read_fun(i: i32) -> pixel_t { lbufs.read(xw, i) };
-//            let pix_bh = read_pixel_bh[pixel_t](yw, read_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
-//            swin.write(xw + stride - pFactor, yw, pix_bh)
-//        }
-//    }
-//
-//    fn @shift(col_ridx: i32, row_ridx: i32) -> () {
-//        for j in unroll(0, height) {
-//            for i in unroll(0, stride - pFactor) {
-//                swin.write(i, j, swin.read(i + pFactor, j));
-//            }
-//        }
-//        row_sel_fun($row_ridx, brdr_assigns);
-//    }
-//
-//    Win2D {
-//        read   = swin.read,
-//        write  = @|_, _, _| (),
-//        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
-//                                         shift($col_ridx, $row_ridx) },
-//        height = height,
-//        width  = width, // optimum
-//        stride = stride,
-//        pFactor= pFactor
-//    }
-//}
+fn @new_sliding_win_bh[T](lbufs: Win2D[T], height: i32, stride: i32, width : i32, row_sel_fun: row_sel_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Win2D[T] {
+    let swin = new_regs2d[T]((0, 0), (stride, height));
+    let pFactor = lbufs.pFactor;
+
+    fn @brdr_assigns(yw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
+        for xw in unroll(0, pFactor) {
+            //fn @read_fun(i: i32) -> U { lbufs.read(xw, i)} //Probably trigers a bug in artic
+            fn @read_fun(i: i32) = lbufs.read(xw, i); //Probably trigers a bug in artic
+            //fn @read_fun(i: i32) -> T { bitcast[T](lbufs.read(xw, i))}
+            let pix_bh = read_pixel_bh[T](yw, read_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
+            swin.write(xw + stride - pFactor, yw, pix_bh)
+        }
+    }
+
+    fn @shift(col_ridx: i32, row_ridx: i32) -> () {
+        for j in unroll(0, height) {
+            for i in unroll(0, stride - pFactor) {
+                swin.write(i, j, swin.read(i + pFactor, j));
+            }
+        }
+        row_sel_fun($row_ridx, brdr_assigns);
+    }
+
+    Win2D[T] {
+        read   = swin.read,
+        write  = @|_, _, _| (),
+        update = @|col_ridx, row_ridx| { lbufs.update($col_ridx, 0);
+                                         shift($col_ridx, $row_ridx) },
+        height = height,
+        width  = width, // optimum
+        stride = stride,
+        pFactor= pFactor
+    }
+}
 
 
 //  --------------------------  Border Handling  -------------------------------
@@ -484,23 +484,20 @@ fn @read_pixel_bh[T](xw: i32, read: fn(i32) -> T, boundary: Boundary, lower_high
         match mode_x {
             BoundaryMode[T]::Index(idx) => read(idx),
             BoundaryMode[T]::Const(c)   => c,
-            _ => undef[T]()
+            //_ => undef[T]()
         }
 }
 
-fn @get_crsn_coord(coord: i32, pFactor: i32) -> i32 {
-    round_up(coord, pFactor) / pFactor
-}
+fn @get_crsn_coord(coord: i32, pFactor: i32) = round_up(coord, pFactor) / pFactor;
 
-fn @get_crsn_interv(interv: Interval1d, pFactor: i32) -> Interval1d {
-    Interval1d { start = get_crsn_coord(interv.start, pFactor),
-                   end = get_crsn_coord(interv.end, pFactor) }
-}
+fn @get_crsn_interv(interv: Interval1d, pFactor: i32) = Interval1d {
+    start = get_crsn_coord(interv.start, pFactor),
+    end = get_crsn_coord(interv.end, pFactor)
+};
 
-fn @get_crsn_roi(roi: RoI1d, pFactor: i32) -> RoI1d {
-    RoI1d{ o_x = get_crsn_coord(roi.o_x, pFactor),
-         width = get_crsn_coord(roi.width, pFactor) }
-}
+fn @get_crsn_roi(roi: RoI1d, pFactor: i32) = RoI1d{
+    o_x = get_crsn_coord(roi.o_x, pFactor),width = get_crsn_coord(roi.width, pFactor)
+};
 
 fn @get_rel_coord(coord: i32, interv: Interval1d) -> i32 {
              if coord > interv.end-1 { (coord % interv.end) + interv.start }
@@ -557,43 +554,43 @@ fn @get_type0_row_sel(loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fu
     }
 }
 
-//fn @new_type0_col_selection[T](swin: Win2D, loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> col_selection {
-//    let (lower_low, lower_high) = get_bounds_fun(Boundary::Lower);
-//    let (upper_low, upper_high) = get_bounds_fun(Boundary::Upper);
-//    let lower_regs = new_regs2d((lower_low, 0), (lower_high, swin.height));
-//    let upper_regs = new_regs2d((upper_low, 0), (upper_high, swin.height));
-//
-//    fn @read_fun(x: i32, y: i32) -> pixel_t {
-//             if x > upper_low - 1 && x < upper_high { upper_regs.read(x, y) }
-//        else if x > lower_low - 1 && x < lower_high { lower_regs.read(x, y) }
-//        else { swin.read(x, y) }
-//    }
-//
-//    fn @write_fun(x: i32, y: i32, din: pixel_t) -> () {
-//        if      x > upper_low - 1 && x < upper_high { upper_regs.write(x, y, din) }
-//        else if x > lower_low - 1 && x < lower_high { lower_regs.write(x, y, din) }
-//        else {}
-//    }
-//
-//    fn @brdr_assigns[T](xw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
-//        for yw in unroll(0, swin.height) {
-//            fn @get_fun(i: i32) -> pixel_t { swin.read(i, yw) };
-//            let pix_bh = read_pixel_bh[T](xw, get_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
-//            write_fun(xw, yw, pix_bh);
-//        }
-//    }
-//
-//    fn @update(col_ridx: i32) -> () {
-//        for boundary in iterate1d_atborders() {
-//            bh_type0($col_ridx, boundary, loop_schedule, get_bounds_fun, brdr_assigns);
-//        }
-//    }
-//
-//    col_selection {
-//        get_read_fn = @|v| { @|x, y| read_fun(x + v, y) },
-//        update      = update
-//    }
-//}
+fn @new_type0_col_selection[T](swin: Win2D[T], loop_schedule: LoopCircular, get_bounds_fun: get_bounds_fun_type, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> col_selection[T] {
+    let (lower_low, lower_high) = get_bounds_fun(Boundary::Lower);
+    let (upper_low, upper_high) = get_bounds_fun(Boundary::Upper);
+    let lower_regs = new_regs2d[T]((lower_low, 0), (lower_high, swin.height));
+    let upper_regs = new_regs2d[T]((upper_low, 0), (upper_high, swin.height));
+
+    fn @read_fun(x: i32, y: i32) -> T {
+             if x > upper_low - 1 && x < upper_high { upper_regs.read(x, y) }
+        else if x > lower_low - 1 && x < lower_high { lower_regs.read(x, y) }
+        else { swin.read(x, y) }
+    }
+
+    fn @write_fun(x: i32, y: i32, din: T) -> () {
+        if      x > upper_low - 1 && x < upper_high { upper_regs.write(x, y, din) }
+        else if x > lower_low - 1 && x < lower_high { lower_regs.write(x, y, din) }
+        else {}
+    }
+
+    fn @brdr_assigns(xw: i32, boundary: Boundary, lower_high: i32, upper_low: i32) -> () {
+        for yw in unroll(0, swin.height) {
+            fn @get_fun(i: i32) = swin.read(i, yw);
+            let pix_bh = read_pixel_bh[T](xw, get_fun, boundary, lower_high, upper_low, bh_lower, bh_upper);
+            write_fun(xw, yw, pix_bh);
+        }
+    }
+
+    fn @update(col_ridx: i32) -> () {
+        for boundary in iterate1d_atborders() {
+            bh_type0($col_ridx, boundary, loop_schedule, get_bounds_fun, brdr_assigns);
+        }
+    }
+
+    col_selection[T] {
+        get_read_fn = @|v| { @|x, y| read_fun(x + v, y) },
+        update      = update
+    }
+}
 
 //  -------------------  Loop Coarsening  ----------------------
 fn @get_stencil_mask(mask: Mask) -> StencilMask {
@@ -605,66 +602,66 @@ fn @get_stencil_mask(mask: Mask) -> StencilMask {
     }
 }
 
-//fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
-//    let mask = get_stencil_mask(mask_in);
-//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-//    let swin_width = mask.size_x + pFactor - 1;
-//    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
-//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-//
-//    // border handling row selection
-//    let input_row_schedule = LoopCircular {
-//        interv = Interval1d {start = mask.upper_y,  end = in_s.height + mask.upper_y + 1}, // loop index
-//        roi  = RoI1d       {  o_x = mask.upper_y, width = in_s.height},                   // image region
-//        pFactor = 1
-//    };
-//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
-//
-//    // On Chip Memory Architecture
-//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-//    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_stride, swin_width, row_sel_fun, bh_lower, bh_upper);
-//
-//    // border handling col selection
-//    let input_col_schedule = LoopCircular {
-//        interv = Interval1d { start = 0,           end = in_s.stride }, // loop index
-//        roi  =      RoI1d { o_x = mask.upper_x, width = in_s.width },  // image region
-//        pFactor = in_s.pFactor
-//    };
-//    let right_padding = in_s.stride - in_s.width;
-//    let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
-//    let col_sel_type0 = new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper);
-//
-//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
-//        swin.update($col_ridx, $row_ridx);
-//        col_sel_type0.update($col_ridx);
-//
-//        for v in unroll(0, pFactor) {
-//            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
-//            let out_acc = Acc[T] { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
-//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-//            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
-//        }
-//    };
-//
-//    let process_time  = crsn_stride * in_s.height;
-//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-//    let life_time     = initial_delay + process_time;
-//    let mut col_ridx = 0;
-//    let mut row_ridx = 0; // border handling
-//    Hardware {
-//        at_read   = |ridx| { in_s.update($ridx); },
-//        at_always = |ridx| { process($col_ridx, $row_ridx); },
-//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-//        at_update = |ridx| {
-//            col_ridx++;
-//            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++;}
-//        },
-//        initial_delay = initial_delay,
-//        read_time = process_time,
-//        life_time = life_time
-//    }
-//}
+fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+    let mask = get_stencil_mask(mask_in);
+    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+    let swin_width = mask.size_x + pFactor - 1;
+    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
+    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+
+    // border handling row selection
+    let input_row_schedule = LoopCircular {
+        interv = Interval1d {start = mask.upper_y,  end = in_s.height + mask.upper_y + 1}, // loop index
+        roi  = RoI1d       {  o_x = mask.upper_y, width = in_s.height},                   // image region
+        pFactor = 1
+    };
+    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+
+    // On Chip Memory Architecture
+    let lbufs = new_line_buffers[T](in_s, crsn_stride, mask.size_y);
+    let swin = new_sliding_win_bh[T](lbufs, mask.size_y, swin_stride, swin_width, row_sel_fun, bh_lower, bh_upper);
+
+    // border handling col selection
+    let input_col_schedule = LoopCircular {
+        interv = Interval1d { start = 0,           end = in_s.stride }, // loop index
+        roi  =      RoI1d { o_x = mask.upper_x, width = in_s.width },  // image region
+        pFactor = in_s.pFactor
+    };
+    let right_padding = in_s.stride - in_s.width;
+    let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
+    let col_sel_type0 = new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper);
+
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
+        swin.update($col_ridx, $row_ridx);
+        col_sel_type0.update($col_ridx);
+
+        for v in unroll(0, pFactor) {
+            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+            let out_acc = Acc[T] { read = |x, y| bitcast[T](0),          write = @|x, y, data| out_s.write(v, data) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
+        }
+    };
+
+    let process_time  = crsn_stride * in_s.height;
+    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+    let life_time     = initial_delay + process_time;
+    let mut col_ridx = 0;
+    let mut row_ridx = 0; // border handling
+    Hardware {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, $row_ridx); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
+            col_ridx++;
+            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++;}
+        },
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
+    }
+}
 
 //fn @CalcAndPack(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
 //    let mask = get_stencil_mask(mask_in);
@@ -915,25 +912,27 @@ fn @pipeline2d(hw: Hardware) -> () {
 // ---------------------------------------------------------------------------
 // ----------------------- Local/Point Operators -----------------------------
 // ---------------------------------------------------------------------------
-//fn @iteration[T](math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> () {
-//    let acc = accelerator(device_id);
-//    let arr_dev = get_device_copy(arr);
-//    let out_dev = get_device_copy(out);
-//
-//    for benchmark_fpga(get_device_sync(out)) {
-//        for work_item in acc.exec((1,1,1), (1,1,1)) {
-//            let pFactor = get_vector_length();
-//            //FetchAndCalc, CalcAndPack, FetchAndCalc_nobh, CalcAndPack_nobh
-//            let coarsening_fun = coarsening_policy;
-//
-//            let in_s  = Img_to_Mem2D_read(arr_dev, get_vector_length());
-//            let out_s = Img_to_Mem2D_write(out_dev, get_vector_length());
-//            let my_hardware = coarsening_fun(math, pFactor, in_s, out_s, mask, bh_lower, bh_upper, body);
-//            pipeline2d(my_hardware);
-//        }
-//    }
-//    get_host_copy(out_dev, out);
-//}
+fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
+    let acc = accelerator(device_id);
+    let arr_dev = get_device_copy[T](arr);
+    let out_dev = get_device_copy[T](out);
+
+    for benchmark_fpga(get_device_sync(out)) {
+        for work_item in acc.exec((1,1,1), (1,1,1)) {
+            let pFactor = get_vector_length();
+            //FetchAndCalc, CalcAndPack, FetchAndCalc_nobh, CalcAndPack_nobh
+            //let coarsening_policy = FetchAndCalc[T];
+            //let coarsening_fun = coarsening_policy;
+            let coarsening_fun = FetchAndCalc[T];
+
+            let in_s  = Img_to_Mem2D_read[T](arr_dev, get_vector_length());
+            let out_s = Img_to_Mem2D_write[T](out_dev, get_vector_length());
+            let my_hardware = coarsening_fun(math, pFactor, in_s, out_s, mask, bh_lower, bh_upper, body);
+            pipeline2d(my_hardware);
+        }
+    }
+    get_host_copy(out_dev, out);
+};
 
 fn @iteration_point[T](body: fn(Intrinsics, i32, i32, Acc[T], T) -> ()) = @|math: Intrinsics, out: Img, arr: Img| {
     let acc = accelerator(device_id);
