@@ -33,11 +33,12 @@ fn harris_corner(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
 
 
     // function type declaration
-    let iteration =  iteration[pixel_t];
-    let iteration_point =  iteration_point[pixel_t];
+    let iteration        = iteration[pixel_t];
+    let iteration_point  = iteration_point[pixel_t];
     let iteration_point2 = iteration_point2[pixel_t];
     let iteration_point3 = iteration_point3[pixel_t];
-    let get_acc = get_acc[pixel_t];
+    let split_image      = split_image[pixel_t];
+    let get_acc          = get_acc[pixel_t];
 
     let input  = new_img(width, height, stride, Buffer { data = bitcast[&mut [i8]](img_data), size = ((width * height) as i64 * sizeof[pixel_t]()) as i64, device = 0 });
     let create_host_img = create_host_img[pixel_t];
