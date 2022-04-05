@@ -20,11 +20,12 @@ fn shi_thomasi(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
     let height = 1024;
     let stride = 1024;
 
-    let iteration =  iteration[pixel_t];
-    let iteration_point =  iteration_point[pixel_t];
+    let iteration        = iteration[pixel_t];
+    let iteration_point  = iteration_point[pixel_t];
     let iteration_point2 = iteration_point2[pixel_t];
     let iteration_point3 = iteration_point3[pixel_t];
-    let get_acc = get_acc[pixel_t];
+    let split_image      = split_image[pixel_t];
+    let get_acc          = get_acc[pixel_t];
 
     //         -- ix -|-- ixx -- sxx -
     //       /         \              \
