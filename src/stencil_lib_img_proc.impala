@@ -13,15 +13,15 @@ fn @create_host_img[T](width: i32, height: i32) -> Img {
 }
 
 // -------------------------- point operators ----------------------------------
-fn @split_image(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe) = (arr, arr);
+fn @split_image[_T](_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe) = (arr, arr);
 
 
-fn @split_image3(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe) = (arr, arr, arr);
+fn @split_image3[_T](_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe) = (arr, arr, arr);
 
 
-fn @split_image5(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe) = (arr, arr, arr, arr, arr);
+fn @split_image5[_T](_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe) = (arr, arr, arr, arr, arr);
 
-fn @split_image6(_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe,
+fn @split_image6[_T](_math: Intrinsics, arr: Img, _out0: &mut pipe, _out1: &mut pipe, _out2: &mut pipe, _out3: &mut pipe, _out4: &mut pipe,
 _out5: &mut pipe) = (arr, arr, arr, arr, arr, arr);
 // ---------------------------------------------------------------------------
 // Everything related with Img in stencil_lib
