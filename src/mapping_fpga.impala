@@ -1,5 +1,3 @@
-//static coarsening_policy = FetchAndCalc[T]; // FetchAndCalc, FetchAndCalc_nobh, CalcAndPack, CalcAndPack_nobh;
-
 // ---------------------------- types ------------------------------------------
 // border handling
 type Bounds = (i32, i32);
@@ -920,9 +918,8 @@ fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, m
     for benchmark_fpga(get_device_sync(out)) {
         for work_item in acc.exec((1,1,1), (1,1,1)) {
             let pFactor = get_vector_length();
-            //FetchAndCalc, CalcAndPack, FetchAndCalc_nobh, CalcAndPack_nobh
-            //let coarsening_policy = FetchAndCalc[T];
-            //let coarsening_fun = coarsening_policy;
+
+            //FetchAndCalc[T], CalcAndPack[T], FetchAndCalc_nobh[T], CalcAndPack_nobh[T]
             let coarsening_fun = FetchAndCalc[T];
 
             let in_s  = Img_to_Mem2D_read[T](arr_dev, get_vector_length());
