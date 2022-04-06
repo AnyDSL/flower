@@ -661,211 +661,211 @@ fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D
     }
 }
 
-//fn @CalcAndPack(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-//    let mask = get_stencil_mask(mask_in);
-//    let swin_width = mask.size_x + pFactor - 1;
-//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-//
-//    // Border_handling
-//    let input_row_schedule = LoopCircular {
-//        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
-//        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
-//        pFactor = 1
-//    };
-//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
-//
-//    // On Chip Memory Architecture
-//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-//    let swin = new_sliding_win_bh(lbufs, mask.size_y, swin_width, swin_width, row_sel_fun, bh_lower, bh_upper);
-//
-//    // Constants for Packing
-//    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
-//    let pack_offset = pFactor - delay_width;
-//    let vec_delayed = new_databeat(delay_width);
-//
-//    let right_padding = in_s.stride - in_s.width;
-//    let col_sel_type0 = {
-//        let interv = Interval1d { start = 0, end = in_s.stride };
-//        if pack_offset == pFactor {
-//            let input_col_schedule = LoopCircular {
-//                interv = interv, pFactor = in_s.pFactor,
-//                roi = RoI1d { o_x = mask.lower_x, width = in_s.width }};
-//            let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
-//            new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper)
-//        } else {
-//            let input_col_schedule1 = LoopCircular {
-//                interv = interv, pFactor = in_s.pFactor,
-//                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width + pFactor}};
-//            let input_col_schedule2 = LoopCircular {
-//                interv = interv, pFactor = in_s.pFactor,
-//                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width}};
-//            let upper_low  = pack_offset + mask.upper_x;
-//            let win_upper_col_bounds = new_bounds(0, 0, upper_low - right_padding, upper_low + mask.upper_x);
-//            let win_lower_col_bounds = new_bounds(upper_low - mask.upper_x, upper_low, swin_width - right_padding, swin_width);
-//            let upper = new_type0_col_selection(swin, input_col_schedule1, win_upper_col_bounds, bh_lower, bh_upper);
-//            let lower = new_type0_col_selection(swin, input_col_schedule2, win_lower_col_bounds, bh_lower, bh_upper);
-//           col_selection {
-//               get_read_fn = @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
-//               update      = @|idx| { upper.update(idx); lower.update(idx); }
-//           }
-//        }
-//    };
-//
-//    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
-//        @|x, y, data| {
-//            if  v < pack_offset {
-//                let pack_idx =  v + delay_width;
-//                out_s.write(pack_idx, data);
-//            } else {
-//                let pack_idx =  v - pack_offset;
-//                out_s.write(pack_idx, vec_delayed.read(pack_idx));
-//                vec_delayed.write(pack_idx, data);
-//            }
-//        }
-//    }
-//
-//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
-//        swin.update($col_ridx, $row_ridx);
-//        col_sel_type0.update($col_ridx);
-//
-//        for v in unroll(0, pFactor) {
-//            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
-//            let out_acc = Acc[T] { read = @|x, y| 0 as pixel_t, write = pack(v) };
-//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-//            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
-//        }
-//    }
-//
-//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-//    let process_time  = crsn_stride * in_s.height;
-//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-//    let life_time     = initial_delay + process_time;
-//
-//    let mut col_ridx = 0;
-//    let mut row_ridx = 0; // border handling
-//
-//    Hardware {
-//        at_read   = |ridx| { in_s.update($ridx); },
-//        at_always = |ridx| { process($col_ridx, $row_ridx); },
-//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-//        at_update = |ridx| {
-//            col_ridx++;
-//            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++; }
-//        },
-//        initial_delay = initial_delay,
-//        read_time = process_time,
-//        life_time = life_time
-//    }
-//}
+fn @CalcAndPack[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+    let mask = get_stencil_mask(mask_in);
+    let swin_width = mask.size_x + pFactor - 1;
+    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
 
-//fn @FetchAndCalc_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-//    let mask = get_stencil_mask(mask_in);
-//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-//    let swin_width = mask.size_x + pFactor - 1;
-//    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
-//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-//
-//    // On Chip Memory Architecture
-//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-//    let swin = new_sliding_win(lbufs, swin_stride, mask.size_y);
-//
-//    fn @process(col_ridx: i32, row_ridx: i32) -> () {
-//        swin.update($col_ridx, $row_ridx);
-//
-//        for v in unroll(0, pFactor) {
-//            let win_acc = Acc { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
-//            let out_acc = Acc { read = |x, y| 0 as pixel_t,          write = @|x, y, data| out_s.write(v, data) };
-//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-//            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
-//        }
-//    };
-//
-//    let process_time  = crsn_stride * in_s.height;
-//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-//    let life_time     = initial_delay + process_time;
-//    //let mut col_ridx = 0;
-//    Hardware {
-//        at_read   = |ridx| { in_s.update($ridx); },
-//        at_always = |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
-//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-//        at_update = |ridx| {
-//            /*col_ridx++;
-//            if col_ridx == crsn_stride { col_ridx = 0; }*/
-//        },
-//        initial_delay = initial_delay,
-//        read_time = process_time,
-//        life_time = life_time
-//    }
-//}
+    // Border_handling
+    let input_row_schedule = LoopCircular {
+        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+        pFactor = 1
+    };
+    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+
+    // On Chip Memory Architecture
+    let lbufs = new_line_buffers[T](in_s, crsn_stride, mask.size_y);
+    let swin = new_sliding_win_bh[T](lbufs, mask.size_y, swin_width, swin_width, row_sel_fun, bh_lower, bh_upper);
+
+    // Constants for Packing
+    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
+    let pack_offset = pFactor - delay_width;
+    let vec_delayed = new_databeat[T](delay_width);
+
+    let right_padding = in_s.stride - in_s.width;
+    let col_sel_type0 = {
+        let interv = Interval1d { start = 0, end = in_s.stride };
+        if pack_offset == pFactor {
+            let input_col_schedule = LoopCircular {
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = mask.lower_x, width = in_s.width }};
+            let win_col_bounds = new_bounds(0, mask.lower_x, mask.lower_x + pFactor - right_padding, swin_width);
+            new_type0_col_selection(swin, input_col_schedule, win_col_bounds, bh_lower, bh_upper)
+        } else {
+            let input_col_schedule1 = LoopCircular {
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width + pFactor}};
+            let input_col_schedule2 = LoopCircular {
+                interv = interv, pFactor = in_s.pFactor,
+                roi = RoI1d { o_x = round_down(mask.lower_x, pFactor), width = in_s.width}};
+            let upper_low  = pack_offset + mask.upper_x;
+            let win_upper_col_bounds = new_bounds(0, 0, upper_low - right_padding, upper_low + mask.upper_x);
+            let win_lower_col_bounds = new_bounds(upper_low - mask.upper_x, upper_low, swin_width - right_padding, swin_width);
+            let upper = new_type0_col_selection(swin, input_col_schedule1, win_upper_col_bounds, bh_lower, bh_upper);
+            let lower = new_type0_col_selection(swin, input_col_schedule2, win_lower_col_bounds, bh_lower, bh_upper);
+           col_selection[T] {
+               get_read_fn = @|v|   { if v < pack_offset { upper.get_read_fn(v) } else { lower.get_read_fn(v) } },
+               update      = @|idx| { upper.update(idx); lower.update(idx); }
+           }
+        }
+    };
+
+    fn @pack(v: i32) -> fn(i32, i32, T) -> () {
+        @|x, y, data| {
+            if  v < pack_offset {
+                let pack_idx =  v + delay_width;
+                out_s.write(pack_idx, data);
+            } else {
+                let pack_idx =  v - pack_offset;
+                out_s.write(pack_idx, vec_delayed.read(pack_idx));
+                vec_delayed.write(pack_idx, data);
+            }
+        }
+    }
+
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
+        swin.update($col_ridx, $row_ridx);
+        col_sel_type0.update($col_ridx);
+
+        for v in unroll(0, pFactor) {
+            let win_acc = Acc[T] { read = col_sel_type0.get_read_fn(v), write = @|x, y, v| {} };
+            let out_acc = Acc[T] { read = @|x, y| bitcast[T](0), write = pack(v) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
+        }
+    }
+
+    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+    let process_time  = crsn_stride * in_s.height;
+    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+    let life_time     = initial_delay + process_time;
+
+    let mut col_ridx = 0;
+    let mut row_ridx = 0; // border handling
+
+    Hardware {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, $row_ridx); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
+            col_ridx++;
+            if col_ridx == crsn_stride { col_ridx = 0; row_ridx++; }
+        },
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
+    }
+}
+
+fn @FetchAndCalc_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+    let mask = get_stencil_mask(mask_in);
+    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+    let swin_width = mask.size_x + pFactor - 1;
+    let swin_stride = mask.lower_x + (1 + win_lat) * pFactor;
+    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+
+    // On Chip Memory Architecture
+    let lbufs = new_line_buffers[T](in_s, crsn_stride, mask.size_y);
+    let swin = new_sliding_win[T](lbufs, swin_stride, mask.size_y);
+
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
+        swin.update($col_ridx, $row_ridx);
+
+        for v in unroll(0, pFactor) {
+            let win_acc = Acc[T] { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+            let out_acc = Acc[T] { read = |x, y| bitcast[T](0),          write = @|x, y, data| out_s.write(v, data) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            //out_acc.write(0, 0, win_acc.read(mask.lower_x + 1, radius_y));
+        }
+    };
+
+    let process_time  = crsn_stride * in_s.height;
+    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+    let life_time     = initial_delay + process_time;
+    //let mut col_ridx = 0;
+    Hardware {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process(/*$col_ridx*/ridx % crsn_stride, 0); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
+            /*col_ridx++;
+            if col_ridx == crsn_stride { col_ridx = 0; }*/
+        },
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
+    }
+}
 
 
-//fn @CalcAndPack_nobh(math: Intrinsics, pFactor: i32, in_s: Mem2D, out_s: Mem2D, mask_in: Mask, bh_lower: BoundaryFn, bh_upper: BoundaryFn, body: StencilFn) -> Hardware {
-//    let mask = get_stencil_mask(mask_in);
-//    let swin_width = mask.size_x + pFactor - 1;
-//    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
-//
-//    // Border_handling
-//    let input_row_schedule = LoopCircular {
-//        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
-//        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
-//        pFactor = 1
-//    };
-//    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
-//    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
-//
-//    // On Chip Memory Architecture
-//    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
-//    let swin = new_sliding_win(lbufs, swin_width, mask.size_y);
-//
-//    // Constants for Packing
-//    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
-//    let pack_offset = pFactor - delay_width;
-//    let vec_delayed = new_databeat(delay_width);
-//
-//    fn @pack(v: i32) -> fn(i32, i32, pixel_t) -> () {
-//        @|x, y, data| {
-//            if  v < pack_offset {
-//                let pack_idx =  v + delay_width;
-//                out_s.write(pack_idx, data);
-//            } else {
-//                let pack_idx =  v - pack_offset;
-//                out_s.write(pack_idx, vec_delayed.read(pack_idx));
-//                vec_delayed.write(pack_idx, data);
-//            }
-//        }
-//    }
-//
-//    fn @process[T](col_ridx: i32, row_ridx: i32) -> () {
-//        swin.update($col_ridx, $row_ridx);
-//
-//        for v in unroll(0, pFactor) {
-//            let win_acc = Acc[T] { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
-//            let out_acc = Acc[T] { read = @|x, y| 0 as pixel_t, write = pack(v) };
-//            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
-//            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
-//        }
-//    }
-//
-//    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
-//    let process_time  = crsn_stride * in_s.height;
-//    let initial_delay = crsn_stride * mask.upper_y + win_lat;
-//    let life_time     = initial_delay + process_time;
-//
-//    let mut col_ridx = 0;
-//    Hardware {
-//        at_read   = |ridx| { in_s.update($ridx); },
-//        at_always = |ridx| { process($col_ridx, 0); },
-//        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
-//        at_update = |ridx| {
-//            col_ridx++;
-//            if col_ridx == crsn_stride { col_ridx = 0;}
-//        },
-//        initial_delay = initial_delay,
-//        read_time = process_time,
-//        life_time = life_time
-//    }
-//}
+fn @CalcAndPack_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+    let mask = get_stencil_mask(mask_in);
+    let swin_width = mask.size_x + pFactor - 1;
+    let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
+
+    // Border_handling
+    let input_row_schedule = LoopCircular {
+        interv = Interval1d {start = mask.lower_y,  end = in_s.height + mask.lower_y + 1}, // loop index
+        roi  = RoI1d      {  o_x = mask.lower_y, width = in_s.height},                // image region
+        pFactor = 1
+    };
+    let win_row_bounds = new_bounds(0, mask.lower_y, mask.lower_y + 1, mask.size_y);
+    let row_sel_fun = get_type0_row_sel(input_row_schedule, win_row_bounds);
+
+    // On Chip Memory Architecture
+    let lbufs = new_line_buffers(in_s, crsn_stride, mask.size_y);
+    let swin = new_sliding_win(lbufs, swin_width, mask.size_y);
+
+    // Constants for Packing
+    let delay_width = (pFactor + ((pFactor - mask.upper_x) % pFactor)) % pFactor;
+    let pack_offset = pFactor - delay_width;
+    let vec_delayed = new_databeat[T](delay_width);
+
+    fn @pack(v: i32) -> fn(i32, i32, T) -> () {
+        @|x, y, data| {
+            if  v < pack_offset {
+                let pack_idx =  v + delay_width;
+                out_s.write(pack_idx, data);
+            } else {
+                let pack_idx =  v - pack_offset;
+                out_s.write(pack_idx, vec_delayed.read(pack_idx));
+                vec_delayed.write(pack_idx, data);
+            }
+        }
+    }
+
+    fn @process(col_ridx: i32, row_ridx: i32) -> () {
+        swin.update($col_ridx, $row_ridx);
+
+        for v in unroll(0, pFactor) {
+            let win_acc = Acc[T] { read = @|x, y| swin.read(x + v, y), write = @|x, y, v| {} };
+            let out_acc = Acc[T] { read = @|x, y| bitcast[T](0), write = pack(v) };
+            @body(math, mask.lower_x, mask.lower_y, out_acc, win_acc, mask_in);
+            //out_acc.write(0, 0, win_acc.read(mask.lower_x+2, mask.lower_y));
+        }
+    }
+
+    let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
+    let process_time  = crsn_stride * in_s.height;
+    let initial_delay = crsn_stride * mask.upper_y + win_lat;
+    let life_time     = initial_delay + process_time;
+
+    let mut col_ridx = 0;
+    Hardware {
+        at_read   = |ridx| { in_s.update($ridx); },
+        at_always = |ridx| { process($col_ridx, 0); },
+        at_write  = |ridx| { out_s.update($ridx - initial_delay); },
+        at_update = |ridx| {
+            col_ridx++;
+            if col_ridx == crsn_stride { col_ridx = 0;}
+        },
+        initial_delay = initial_delay,
+        read_time = process_time,
+        life_time = life_time
+    }
+}
 
 //  ------------------- Stencil Processing ---------------------
 fn @pipeline2d(hw: Hardware) -> () {
@@ -1404,97 +1404,97 @@ fn @split_image_point[T](math: Intrinsics, arr: Img, pipe0: &mut pipe, pipe1: &m
 //// ---------------------------------------------------------------------------
 //// ------------------------ Global Operators   ----------------------------------
 //// ---------------------------------------------------------------------------
-//fn @reduce_balanced(prev: regs1d, block: i32, body: fn(regs1d, i32, i32) -> pixel_t) -> pixel_t {
-//    let size = (prev.end - prev.begin);
-//
-//    if (size < block + 1) {
-//        @body(prev, prev.begin, prev.end)
-//    } else {
-//        let offset = (size % block);
-//        let size_next = size / block + offset;
-//        let next = concat_regs1d(prev, Interval1d{start = 0, end = offset}, new_regs1d(offset, size_next), Interval1d{start = offset, end = size_next});
-//
-//        for i in unroll_step(offset, size, block) {
-//            next.write(i / block + offset, @body(prev, i, i + block));
-//        }
-//
-//        reduce_balanced(next, block, body)
-//    }
-//}
-//
-//fn @iteration_reduce(math: Intrinsics, out: Img, arr: Img, neutral: pixel_t, body: fn(Intrinsics, pixel_t, pixel_t) -> pixel_t) -> () {
-//    let acc = accelerator(device_id);
-//    let arr_dev = get_device_copy(arr);
-//    let out_dev = get_device_copy(out);
-//
-//    let block = 2:i32;
-//    let pFactor = get_vector_length();
-//
-//    // reduce two inputs with the body function
-//    fn @reduce_block(data: regs1d, start: i32, end : i32) -> pixel_t {
-//        if (end - start) > 1 {
-//            let mut result = @body(math, data.read(start), data.read(start + 1));
-//            for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
-//            result
-//        } else if (end - start) == 1 {
-//            data.read(start)
-//        } else {
-//            neutral
-//        }
-//    };
-//
-//    for benchmark_fpga(get_device_sync(out)) {
-//        for work_item in acc.exec((1,1,1), (1,1,1)) {
-//            let out_m = Img_to_Mem2D_write(out_dev, get_vector_length());
-//            let in_m = Img_to_Mem2D_read(arr_dev, get_vector_length());
-//
-//            let crsn_stride = round_up(in_m.stride, pFactor) / pFactor;
-//
-//            // border handling
-//            let bh_size = in_m.stride - in_m.width;
-//            let bh_neccessary = if(bh_size > 0) { true } else { false };
-//
-//            let mut col_ridx = 0;
-//            let mut bh_apply = false;
-//
-//            fn @col_update(ridx: i32) -> () {
-//                if bh_neccessary == true {
-//                    col_ridx++;
-//                    if bh_apply == true { col_ridx = 0; bh_apply = false;}
-//                    if col_ridx == crsn_stride - 1 { bh_apply = true; }
-//                }
-//            }
-//
-//            fn @border_handling(prev: regs1d) -> () {
-//                if bh_neccessary == true {
-//                    if $bh_apply == true { // I assume (stride -  width) <  pFactor
-//                        for i in unroll(pFactor - bh_size, pFactor) {
-//                           prev.write(i, neutral);
-//                        }
-//                    }
-//                 }
-//            }
-//
-//            let mut redval = neutral;
-//            let my_hardware = Hardware {
-//                at_read   = |ridx| { in_m.update($ridx); },
-//                at_always = |ridx| {
-//                    let prev = concat_regs1d(regs1d { write = in_m.write, read = in_m.read, begin = 0, end = pFactor }, Interval1d{start = 0, end = pFactor},
-//                                             regs1d { write = |_, _|(), read = |_| { redval }, begin = 0, end = 1 }, Interval1d{start = 0, end = 1});
-//                    border_handling(prev);
-//                    redval = reduce_balanced(prev, block, reduce_block);
-//                    //redval = reduce_block(prev, prev.begin, prev.end); // naive
-//                    },
-//                at_write  = |_| (),
-//                at_update = col_update,
-//                initial_delay = 0,
-//                read_time = crsn_stride * in_m.height,
-//                life_time = crsn_stride * in_m.height
-//            };
-//            pipeline2d(my_hardware);
-//            out_m.write(0, redval);
-//            out_m.update(0);
-//        }
-//    }
-//    get_host_copy(out_dev, out);
-//}
+fn @reduce_balanced[T](prev: regs1d[T], block: i32, body: fn(regs1d[T], i32, i32) -> T) -> T {
+    let size = (prev.end - prev.begin);
+
+    if (size < block + 1) {
+        @body(prev, prev.begin, prev.end)
+    } else {
+        let offset = (size % block);
+        let size_next = size / block + offset;
+        let next = concat_regs1d[T](prev, Interval1d{start = 0, end = offset}, new_regs1d[T](offset, size_next), Interval1d{start = offset, end = size_next});
+
+        for i in unroll_step(offset, size, block) {
+            next.write(i / block + offset, @body(prev, i, i + block));
+        }
+
+        reduce_balanced[T](next, block, body)
+    }
+}
+
+fn @iteration_reduce[T](body: fn(Intrinsics, T, T) -> T) = @|math: Intrinsics, out: Img, arr: Img, neutral: T | {
+    let acc = accelerator(device_id);
+    let arr_dev = get_device_copy[T](arr);
+    let out_dev = get_device_copy[T](out);
+
+    let block = 2:i32;
+    let pFactor = get_vector_length();
+
+    // reduce two inputs with the body function
+    fn @reduce_block(data: regs1d[T], start: i32, end : i32) -> T {
+        if (end - start) > 1 {
+            let mut result = @body(math, data.read(start), data.read(start + 1));
+            for i in unroll(start + 2, end) { result = @body(math, result, data.read(i)); }
+            result
+        } else if (end - start) == 1 {
+            data.read(start)
+        } else {
+            neutral
+        }
+    };
+
+    for benchmark_fpga(get_device_sync(out)) {
+        for work_item in acc.exec((1,1,1), (1,1,1)) {
+            let out_m = Img_to_Mem2D_write[T](out_dev, get_vector_length());
+            let in_m = Img_to_Mem2D_read[T](arr_dev, get_vector_length());
+
+            let crsn_stride = round_up(in_m.stride, pFactor) / pFactor;
+
+            // border handling
+            let bh_size = in_m.stride - in_m.width;
+            let bh_neccessary = if(bh_size > 0) { true } else { false };
+
+            let mut col_ridx = 0;
+            let mut bh_apply = false;
+
+            fn @col_update(ridx: i32) -> () {
+                if bh_neccessary == true {
+                    col_ridx++;
+                    if bh_apply == true { col_ridx = 0; bh_apply = false;}
+                    if col_ridx == crsn_stride - 1 { bh_apply = true; }
+                }
+            }
+
+            fn @border_handling(prev: regs1d[T]) -> () {
+                if bh_neccessary == true {
+                    if $bh_apply == true { // I assume (stride -  width) <  pFactor
+                        for i in unroll(pFactor - bh_size, pFactor) {
+                           prev.write(i, neutral);
+                        }
+                    }
+                 }
+            }
+
+            let mut redval = neutral;
+            let my_hardware = Hardware {
+                at_read   = |ridx| { in_m.update($ridx); },
+                at_always = |ridx| {
+                    let prev = concat_regs1d(regs1d[T] { write = in_m.write, read = in_m.read, begin = 0, end = pFactor }, Interval1d{start = 0, end = pFactor},
+                                             regs1d[T] { write = |_, _|(), read = |_| { redval }, begin = 0, end = 1 }, Interval1d{start = 0, end = 1});
+                    border_handling(prev);
+                    redval = reduce_balanced[T](prev, block, reduce_block);
+                    //redval = reduce_block(prev, prev.begin, prev.end); // naive
+                    },
+                at_write  = |_| (),
+                at_update = col_update,
+                initial_delay = 0,
+                read_time = crsn_stride * in_m.height,
+                life_time = crsn_stride * in_m.height
+            };
+            pipeline2d(my_hardware);
+            out_m.write(0, redval);
+            out_m.update(0);
+        }
+    }
+    get_host_copy(out_dev, out);
+};
