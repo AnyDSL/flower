@@ -108,13 +108,17 @@ fn main() -> i32 {
     let height = 1024;
 
     // function declarations
-    let iteration =  iteration[pixel_t];
-    let iteration_point =  iteration_point[pixel_t];
+    let iteration        =  iteration[pixel_t];
+    let iteration_point  =  iteration_point[pixel_t];
     let iteration_point2 = iteration_point2[pixel_t];
     let iteration_point3 = iteration_point3[pixel_t];
     let iteration_point5 = iteration_point5[pixel_t];
-    let get_acc = get_acc[pixel_t];
-    let create_host_img = create_host_img[pixel_t];
+    let split_image      = split_image[pixel_t];
+    let split_image3     = split_image3[pixel_t];
+    let split_image5     = split_image5[pixel_t];
+    let split_image6     = split_image6[pixel_t];
+    let get_acc          = get_acc[pixel_t];
+    let create_host_img  = create_host_img[pixel_t];
 
     let in_frame_1 = create_host_img(width, height);
     let in_frame_2 = create_host_img(width, height);
