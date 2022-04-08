@@ -1,6 +1,6 @@
 type BoundaryFn[T]   = fn(i32, i32, i32) -> BoundaryMode[T];
-type StencilFn[T]    = fn(Intrinsics, i32, i32, Acc[T], Acc[T], Mask) -> ();
-type StencilSepFn[T] = fn(Intrinsics, i32, i32, Acc[T], Acc[T], MaskSep, bool) -> ();
+type StencilFn[T]    = fn(Intrinsics, i32, i32, Acc[T], Acc[T], Mask[T]) -> ();
+type StencilSepFn[T] = fn(Intrinsics, i32, i32, Acc[T], Acc[T], MaskSep[T], bool) -> ();
 type Region       = (Boundary, Boundary);
 
 struct RoI {
@@ -15,16 +15,16 @@ struct Acc[T] {
     write : fn(i32, i32, T) -> (),
 }
 
-struct Mask {
-    data : fn(i32, i32) -> pixel_t,
-    sum  : pixel_t,
+struct Mask[T] {
+    data : fn(i32, i32) -> T,
+    sum  : T,
     size_x : i32,
     size_y : i32,
 }
 
-struct MaskSep {
-    data : fn(i32) -> pixel_t,
-    sum  : pixel_t,
+struct MaskSep[T] {
+    data : fn(i32) -> T,
+    sum  : T,
     size : i32,
 }
 
@@ -37,7 +37,7 @@ enum BoundaryMode[T] {
     Const(T)
 }
 
-fn @apply_stencil[T](x: i32, y: i32, acc: Acc[T], mask: Mask) -> T {
+fn @apply_stencil[T](x: i32, y: i32, acc: Acc[T], mask: Mask[T]) -> T {
     let mut sum = 0 as pixel_t;
     let half_range_y = mask.size_y / 2;
     let half_range_x = mask.size_x / 2;
@@ -45,41 +45,42 @@ fn @apply_stencil[T](x: i32, y: i32, acc: Acc[T], mask: Mask) -> T {
     for j in unroll(-half_range_y, half_range_y+1) {
         for i in unroll(-half_range_x, half_range_x+1) {
             let stencil_val = mask.data(j + half_range_y, i + half_range_x);
-            if stencil_val != 0 as pixel_t {
-                sum +=bitcast[pixel_t](acc.read(x + i, y + j))* stencil_val;
+            if bitcast[pixel_t](stencil_val) != 0 as pixel_t {
+                // primary operators don't support polymorphic types?!
+                sum += bitcast[pixel_t](acc.read(x + i, y + j)) * bitcast[pixel_t](stencil_val);
             } else {
                 // additional logic for empty stencil value
             }
         }
     }
 
-    if (mask.sum != 1 as pixel_t) {
-        sum /= mask.sum;
+    if (bitcast[pixel_t](mask.sum) != bitcast[pixel_t](1)) {
+        sum /= bitcast[pixel_t](mask.sum);
     }
 
     bitcast[T](sum)
 }
 
-fn @apply_stencil_sep[T](x: i32, y: i32, acc: Acc[T], mask: MaskSep, row: bool) -> T {
+fn @apply_stencil_sep[T](x: i32, y: i32, acc: Acc[T], mask: MaskSep[T], row: bool) -> T {
     let mut sum = 0 as pixel_t;
     let half_range = mask.size / 2;
 
     for i in unroll(-half_range, half_range+1) {
         let stencil_val = mask.data(i + half_range);
-        if stencil_val != 0 as pixel_t {
+        if bitcast[pixel_t](stencil_val) != 0 as pixel_t {
             if row {
-                sum += bitcast[pixel_t](acc.read(x + i, y)) * stencil_val;
+                sum += bitcast[pixel_t](acc.read(x + i, y)) * bitcast[pixel_t](stencil_val);
                 //sum += acc.read(x + i, y) * stencil_val;
             } else {
-                sum += bitcast[pixel_t](acc.read(x, y + i)) * stencil_val;
+                sum += bitcast[pixel_t](acc.read(x, y + i)) * bitcast[pixel_t](stencil_val);
             }
         } else {
             // additional logic for empty stencil value
         }
     }
 
-    if (mask.sum != 1 as pixel_t) {
-        sum /= mask.sum;
+    if (bitcast[pixel_t](mask.sum) != bitcast[pixel_t](1)) {
+        sum /= bitcast[pixel_t](mask.sum);
     }
 
     bitcast[T](sum)
@@ -190,66 +191,66 @@ fn @get_acc_offset_memory[T](set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> 
         write = @|x, y, v| set_pixel((y + roy) * width + x + rox, v)
         };
 
-fn @sum_mask(size: i32, data: fn(i32) -> pixel_t) -> pixel_t {
+fn @sum_mask[T](size: i32, data: fn(i32) -> T) -> T {
     fn @sum_helper(i: i32, s: pixel_t) -> pixel_t {
-        if i == size { s } else { sum_helper(i + 1, s + data(i)) }
+        if i == size { s } else { sum_helper(i + 1, s + bitcast[pixel_t](data(i))) }
     }
     let sum = sum_helper(0, 0 as pixel_t);
     if sum == 0 as pixel_t {
-        1 as pixel_t
+        bitcast[T](1)
     } else {
-        sum
+        bitcast[T](sum)
     }
 }
 
-fn @get_mask3(data: [[pixel_t * 3] * 3]) -> Mask {
-    let data_sum = @|x:i32| -> pixel_t { data(x % 3)(x / 3) };
-    Mask {
-        data = @|x, y| -> pixel_t { data(y)(x) },
+fn @get_mask3[T](data: [[T * 3] * 3]) -> Mask[T] {
+    let data_sum = @|x:i32| -> T { data(x % 3)(x / 3) };
+    Mask[T] {
+        data = @|x, y| -> T { data(y)(x) },
         sum  = sum_mask(9, data_sum),
         size_x = 3, size_y = 3
     }
 }
-fn @get_mask5(data: [[pixel_t * 5] * 5]) -> Mask {
-    let data_sum = @|x:i32| -> pixel_t { data(x % 5)(x / 5) };
-    Mask {
-        data = @|x, y| -> pixel_t { data(y)(x) },
+fn @get_mask5[T](data: [[T * 5] * 5]) -> Mask[T] {
+    let data_sum = @|x:i32| -> T { data(x % 5)(x / 5) };
+    Mask[T] {
+        data = @|x, y| -> T { data(y)(x) },
         sum  = sum_mask(25, data_sum),
         size_x = 5, size_y = 5
     }
 }
 
-fn @get_mask9(data: [[pixel_t * 9] * 9]) -> Mask {
+fn @get_mask9[T](data: [[T * 9] * 9]) -> Mask[T] {
     let size = 9;
-    let data_sum = @|x:i32| -> pixel_t { data(x % size)(x / size) };
-    Mask {
-        data = @|x, y| -> pixel_t { data(y)(x) },
+    let data_sum = @|x:i32| -> T { data(x % size)(x / size) };
+    Mask[T] {
+        data = @|x, y| -> T { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
         size_x = size, size_y = size
     }
 }
 
-fn @get_mask13(data: [[pixel_t * 13] * 13]) -> Mask {
+fn @get_mask13[T](data: [[T * 13] * 13]) -> Mask[T] {
     let size = 13;
-    let data_sum = @|x:i32| -> pixel_t { data(x % size)(x / size) };
-    Mask {
-        data = @|x, y| -> pixel_t { data(y)(x) },
+    let data_sum = @|x:i32| -> T { data(x % size)(x / size) };
+    Mask[T] {
+        data = @|x, y| -> T { data(y)(x) },
         sum  = sum_mask(size * size , data_sum),
         size_x = size, size_y = size
     }
 }
 
-fn @get_mask_sep3(data: [pixel_t * 3]) -> MaskSep {
-    let data = @|x:i32| -> pixel_t { data(x) };
-    MaskSep {
+fn @get_mask_sep3[T](data: [T * 3]) -> MaskSep[T] {
+    let data = @|x:i32| -> T { data(x) };
+    MaskSep[T] {
         data = data,
         sum  = sum_mask(3, data),
         size = 3
     }
 }
-fn @get_mask_sep5(data: [pixel_t * 5]) -> MaskSep {
-    let data = @|x:i32| -> pixel_t { data(x) };
-    MaskSep {
+fn @get_mask_sep5[T](data: [T * 5]) -> MaskSep[T] {
+    let data = @|x:i32| -> T { data(x) };
+    MaskSep[T] {
         data = data,
         sum  = sum_mask(5, data),
         size = 5

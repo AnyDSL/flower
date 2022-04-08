@@ -76,7 +76,7 @@ fn @iteration_point5[T](body: fn(Intrinsics, i32, i32, Acc[T], T, T, T, T, T) ->
     }
 };
 
-fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
+fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
     let out_acc = get_acc[T](out, set_pixel_fn[T](out), get_pixel_fn[T](out));
     let arr_acc = get_acc_bh[T](arr, set_pixel_fn[T](arr), get_pixel_fn[T](arr), (Boundary::Unknown, Boundary::Unknown), bh_lower, bh_upper);
 
@@ -90,7 +90,7 @@ fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, m
 };
 
 
-fn @iteration_bounds[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
+fn @iteration_bounds[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
     // compute the number of vector strides for boundary handling
     let bhy = mask.size_y / 2;
     let bhx = round_up(mask.size_x / 2, get_vector_length());
@@ -140,7 +140,7 @@ fn @tiled_loop(xl: i32, xu: i32, yl: i32, yu: i32, body: fn(i32, i32) -> ()) -> 
     tile(0, xl, xu, yl, yu)
 }
 
-fn @iteration_advanced[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
+fn @iteration_advanced[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
     // compute the number of vector strides for boundary handling
     let bhy = mask.size_y / 2;
     let bhx = round_up(mask.size_x / 2, get_vector_length());
@@ -166,7 +166,7 @@ fn @iteration_advanced[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, ar
     }
 };
 
-fn @iteration_sep[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep, mask_col: MaskSep, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
+fn @iteration_sep[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep[T], mask_col: MaskSep[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
     // allocate temporary array
     let tmp       = alloc_img[T](out, alloc_cpu);
     let out_acc   = get_acc[T](out, set_pixel_fn[T](out), get_pixel_fn[T](out));
@@ -193,7 +193,7 @@ fn @iteration_sep[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr
     release(tmp.buf);
 };
 
-fn @iteration_sep_bounds[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep, mask_col: MaskSep, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
+fn @iteration_sep_bounds[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep[T], mask_col: MaskSep[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
     // allocate temporary array
     let tmp = alloc_img[T](out, alloc_cpu);
 
@@ -232,7 +232,7 @@ fn @iteration_sep_bounds[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: I
     release(tmp.buf);
 };
 
-fn @iteration_sep_advanced[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep, mask_col: MaskSep, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
+fn @iteration_sep_advanced[T]( body: StencilSepFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask_row: MaskSep[T], mask_col: MaskSep[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]| {
     // compute the number of vector strides for boundary handling
     let coarsening_factor = 1;
     let bhy = round_up(mask_col.size / 2, coarsening_factor);

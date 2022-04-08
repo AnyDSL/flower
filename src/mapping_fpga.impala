@@ -4,7 +4,7 @@ type Bounds = (i32, i32);
 type get_bounds_fun_type = fn(Boundary) -> Bounds;
 type pixel_read_type[T]  = fn(i32, i32, Boundary, Bounds, fn(i32) -> T) -> T;
 type row_sel_fun_type = fn(i32, brdr_assigns_type) -> ();
-type crsn_type[T] = fn(Intrinsics, Mem2D[T], Mem2D[T], i32, Mask, i32, BoundaryFn[T], BoundaryFn[T], StencilFn[T]) -> coarsening_type;
+type crsn_type[T] = fn(Intrinsics, Mem2D[T], Mem2D[T], i32, Mask[T], i32, BoundaryFn[T], BoundaryFn[T], StencilFn[T]) -> coarsening_type;
 type brdr_assigns_type = fn(i32, Boundary, i32, i32) -> ();
 // ---------------------------- structs ----------------------------------------
 // memory access
@@ -591,7 +591,7 @@ fn @new_type0_col_selection[T](swin: Win2D[T], loop_schedule: LoopCircular, get_
 }
 
 //  -------------------  Loop Coarsening  ----------------------
-fn @get_stencil_mask(mask: Mask) -> StencilMask {
+fn @get_stencil_mask[T](mask: Mask[T]) -> StencilMask {
     let radius_y = mask.size_y >> 1;
     let radius_x = mask.size_x >> 1;
     StencilMask {
@@ -600,7 +600,7 @@ fn @get_stencil_mask(mask: Mask) -> StencilMask {
     }
 }
 
-fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
     let swin_width = mask.size_x + pFactor - 1;
@@ -661,7 +661,7 @@ fn @FetchAndCalc[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D
     }
 }
 
-fn @CalcAndPack[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+fn @CalcAndPack[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let swin_width = mask.size_x + pFactor - 1;
     let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
@@ -759,7 +759,7 @@ fn @CalcAndPack[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[
     }
 }
 
-fn @FetchAndCalc_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+fn @FetchAndCalc_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let win_lat = round_up(mask.upper_x, pFactor) / pFactor;
     let swin_width = mask.size_x + pFactor - 1;
@@ -800,7 +800,7 @@ fn @FetchAndCalc_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: 
 }
 
 
-fn @CalcAndPack_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
+fn @CalcAndPack_nobh[T](math: Intrinsics, pFactor: i32, in_s: Mem2D[T], out_s: Mem2D[T], mask_in: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T], body: StencilFn[T]) -> Hardware {
     let mask = get_stencil_mask(mask_in);
     let swin_width = mask.size_x + pFactor - 1;
     let crsn_stride = round_up(in_s.stride, pFactor) / pFactor;
@@ -910,7 +910,7 @@ fn @pipeline2d(hw: Hardware) -> () {
 // ---------------------------------------------------------------------------
 // ----------------------- Local/Point Operators -----------------------------
 // ---------------------------------------------------------------------------
-fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
+fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img, arr: Img, mask: Mask[T], bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]|{
     let acc = accelerator(device_id);
     let arr_dev = get_device_copy[T](arr);
     let out_dev = get_device_copy[T](out);
