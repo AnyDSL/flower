@@ -1,4 +1,4 @@
-fn init_data(arr: Img) -> () {
+fn init_data[T](arr: Img[T]) -> () {
     let buf = bitcast[&mut[pixel_t]](arr.buf.data);
 
     for y in range(0, arr.height) {
@@ -10,9 +10,9 @@ fn init_data(arr: Img) -> () {
     }
 }
 
-static mut mm_to_str_buf: pipe;
-static mut str_to_mm_buf: pipe;
-static mut luma_c : pipe;
+static mut mm_to_str_buf: pipe[pixel_t];
+static mut str_to_mm_buf: pipe[pixel_t];
+static mut luma_c       : pipe[pixel_t];
 
 fn main() -> i32 {
     let width  = 1024;
@@ -21,9 +21,9 @@ fn main() -> i32 {
     let create_host_img = create_host_img[pixel_t];
     let arr = create_host_img(width, height);
     let out = create_host_img(width, height);
-    let mm_to_str = create_virtual_img(width, height, &mut mm_to_str_buf);
-    let str_to_mm = create_virtual_img(width, height, &mut str_to_mm_buf);
-    let luma = create_virtual_img(width, height, &mut luma_c );
+    let mm_to_str = create_virtual_img[pixel_t](width, height, &mut mm_to_str_buf);
+    let str_to_mm = create_virtual_img[pixel_t](width, height, &mut str_to_mm_buf);
+    let luma = create_virtual_img[pixel_t](width, height, &mut luma_c );
     init_data(arr);
     init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
 

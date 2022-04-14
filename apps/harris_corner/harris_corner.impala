@@ -6,18 +6,18 @@
  *
  */
 
-static mut dx_c  : pipe;
-static mut dy_c  : pipe;
-static mut dxx_c : pipe;
-static mut dxy_c : pipe;
-static mut dyy_c : pipe;
-static mut gxx_c : pipe;
-static mut gxy_c : pipe;
-static mut gyy_c : pipe;
-static mut dx_c0 : pipe;
-static mut dx_c1 : pipe;
-static mut dy_c0 : pipe;
-static mut dy_c1 : pipe;
+static mut dx_c  : pipe[pixel_t];
+static mut dy_c  : pipe[pixel_t];
+static mut dxx_c : pipe[pixel_t];
+static mut dxy_c : pipe[pixel_t];
+static mut dyy_c : pipe[pixel_t];
+static mut gxx_c : pipe[pixel_t];
+static mut gxy_c : pipe[pixel_t];
+static mut gyy_c : pipe[pixel_t];
+static mut dx_c0 : pipe[pixel_t];
+static mut dx_c1 : pipe[pixel_t];
+static mut dy_c0 : pipe[pixel_t];
+static mut dy_c1 : pipe[pixel_t];
 
 #[export]
 fn harris_corner(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
@@ -33,16 +33,16 @@ fn harris_corner(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
 
 
     // function type declaration
-    let iteration        = iteration[pixel_t];
-    let iteration_point  = iteration_point[pixel_t];
-    let iteration_point2 = iteration_point2[pixel_t];
-    let iteration_point3 = iteration_point3[pixel_t];
-    let split_image      = split_image[pixel_t];
-    let get_acc          = get_acc[pixel_t];
+    let iteration          = iteration[pixel_t];
+    let iteration_point    = iteration_point[pixel_t];
+    let iteration_point2   = iteration_point2[pixel_t];
+    let iteration_point3   = iteration_point3[pixel_t];
+    let create_virtual_img = create_virtual_img[pixel_t];
+    let split_image        = split_image[pixel_t];
+    let get_acc            = get_acc[pixel_t];
 
-    let input  = new_img(width, height, stride, Buffer { data = bitcast[&mut [i8]](img_data), size = ((width * height) as i64 * sizeof[pixel_t]()) as i64, device = 0 });
-    let create_host_img = create_host_img[pixel_t];
-    let harris = create_host_img(width, height);
+    let input  = new_img[pixel_t](width, height, stride, Buffer { data = bitcast[&mut [i8]](img_data), size = ((width * height) as i64 * sizeof[pixel_t]()) as i64, device = 0 });
+    let harris = create_host_img[pixel_t](width, height);
     let dx  = create_virtual_img(width, height, &mut dx_c );
     let dy  = create_virtual_img(width, height, &mut dy_c );
     let dxx = create_virtual_img(width, height, &mut dxx_c);

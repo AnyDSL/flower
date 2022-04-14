@@ -1,4 +1,4 @@
-fn init_data(arr: Img , fill_x :i32, fill_y: i32) -> () {
+fn init_data[T](arr: Img[T] , fill_x :i32, fill_y: i32) -> () {
     let buf = bitcast[&mut[pixel_t]](arr.buf.data);
     let size = (fill_x + fill_y);
 
@@ -18,57 +18,58 @@ fn init_data(arr: Img , fill_x :i32, fill_y: i32) -> () {
 
 
 
-static mut channel_in_frame_1_to_ix : pipe;
-static mut channel_in_frame_1_to_iy : pipe;
-static mut channel_in_frame_1_to_it : pipe;
-static mut channel_it : pipe;
-static mut channel_ix : pipe;
-static mut channel_iy : pipe;
-static mut channel_ixx : pipe;
-static mut channel_iyy : pipe;
-static mut channel_ixy : pipe;
-static mut channel_ixt : pipe;
-static mut channel_iyt : pipe;
-static mut channel_ix_to_ixx : pipe;
-static mut channel_ix_to_ixy : pipe;
-static mut channel_ix_to_ixt : pipe;
-static mut channel_iy_to_iyy : pipe;
-static mut channel_iy_to_ixy : pipe;
-static mut channel_iy_to_iyt : pipe;
-static mut channel_it_to_ixt : pipe;
-static mut channel_it_to_iyt : pipe;
-static mut channel_wixx : pipe;
-static mut channel_wiyy : pipe;
-static mut channel_wixy : pipe;
-static mut channel_wixt : pipe;
-static mut channel_wiyt : pipe;
-static mut channel_denominator : pipe;
-static mut channel_inv_denom_of_v_x : pipe;
-static mut channel_inv_denom_of_v_y : pipe;
-static mut channel_wixt_to_v_x : pipe;
-static mut channel_wixt_to_v_y : pipe;
-static mut channel_wixy_to_v_x : pipe;
-static mut channel_wixy_to_v_y : pipe;
-static mut channel_wixy_to_denom : pipe;
-static mut channel_wiyt_to_v_x : pipe;
-static mut channel_wiyt_to_v_y : pipe;
-static mut channel_wiyy_to_denom : pipe;
-static mut channel_wiyy_to_v_x :pipe;
-static mut channel_wixx_to_denom : pipe;
-static mut channel_wixx_to_v_y : pipe;
+static mut channel_in_frame_1_to_ix : pipe[pixel_t];
+static mut channel_in_frame_1_to_iy : pipe[pixel_t];
+static mut channel_in_frame_1_to_it : pipe[pixel_t];
+static mut channel_it : pipe[pixel_t];
+static mut channel_ix : pipe[pixel_t];
+static mut channel_iy : pipe[pixel_t];
+static mut channel_ixx : pipe[pixel_t];
+static mut channel_iyy : pipe[pixel_t];
+static mut channel_ixy : pipe[pixel_t];
+static mut channel_ixt : pipe[pixel_t];
+static mut channel_iyt : pipe[pixel_t];
+static mut channel_ix_to_ixx : pipe[pixel_t];
+static mut channel_ix_to_ixy : pipe[pixel_t];
+static mut channel_ix_to_ixt : pipe[pixel_t];
+static mut channel_iy_to_iyy : pipe[pixel_t];
+static mut channel_iy_to_ixy : pipe[pixel_t];
+static mut channel_iy_to_iyt : pipe[pixel_t];
+static mut channel_it_to_ixt : pipe[pixel_t];
+static mut channel_it_to_iyt : pipe[pixel_t];
+static mut channel_wixx : pipe[pixel_t];
+static mut channel_wiyy : pipe[pixel_t];
+static mut channel_wixy : pipe[pixel_t];
+static mut channel_wixt : pipe[pixel_t];
+static mut channel_wiyt : pipe[pixel_t];
+static mut channel_denominator : pipe[pixel_t];
+static mut channel_inv_denom_of_v_x : pipe[pixel_t];
+static mut channel_inv_denom_of_v_y : pipe[pixel_t];
+static mut channel_wixt_to_v_x : pipe[pixel_t];
+static mut channel_wixt_to_v_y : pipe[pixel_t];
+static mut channel_wixy_to_v_x : pipe[pixel_t];
+static mut channel_wixy_to_v_y : pipe[pixel_t];
+static mut channel_wixy_to_denom : pipe[pixel_t];
+static mut channel_wiyt_to_v_x   : pipe[pixel_t];
+static mut channel_wiyt_to_v_y   : pipe[pixel_t];
+static mut channel_wiyy_to_denom : pipe[pixel_t];
+static mut channel_wiyy_to_v_x   : pipe[pixel_t];
+static mut channel_wixx_to_denom : pipe[pixel_t];
+static mut channel_wixx_to_v_y   : pipe[pixel_t];
 
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
 
-    let iteration        = iteration[pixel_t];
-    let iteration_point  = iteration_point[pixel_t];
-    let iteration_point2 = iteration_point2[pixel_t];
-    let iteration_point3 = iteration_point3[pixel_t];
-    let iteration_point5 = iteration_point5[pixel_t];
-    let split_image      = split_image[pixel_t];
-    let split_image3     = split_image3[pixel_t];
-    let get_acc          = get_acc[pixel_t];
+    let iteration          = iteration[pixel_t];
+    let iteration_point    = iteration_point[pixel_t];
+    let iteration_point2   = iteration_point2[pixel_t];
+    let iteration_point3   = iteration_point3[pixel_t];
+    let iteration_point5   = iteration_point5[pixel_t];
+    let create_virtual_img = create_virtual_img[pixel_t];
+    let split_image        = split_image[pixel_t];
+    let split_image3       = split_image3[pixel_t];
+    let get_acc            = get_acc[pixel_t];
 
 
     let create_host_img = create_host_img[pixel_t];

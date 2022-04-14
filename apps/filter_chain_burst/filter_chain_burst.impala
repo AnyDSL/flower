@@ -1,8 +1,7 @@
-
-static mut out00_buf: pipe;
-static mut out0_buf: pipe;
-static mut out1_buf: pipe;
-static mut out2_buf: pipe;
+static mut out00_buf: pipe[pixel_t];
+static mut out0_buf: pipe[pixel_t];
+static mut out1_buf: pipe[pixel_t];
+static mut out2_buf: pipe[pixel_t];
 
 fn main() -> i32 {
     let width  = 1024;
@@ -10,10 +9,10 @@ fn main() -> i32 {
     let create_host_img = create_host_img[pixel_t];
     let arr    = create_host_img(width, height);
     let out    = create_host_img(width, height);
-    let out00  = create_virtual_img(width, height, &mut out00_buf);
-    let out0   = create_virtual_img(width, height, &mut out0_buf);
-    let out1   = create_virtual_img(width, height, &mut out1_buf);
-    let out2   = create_virtual_img(width, height, &mut out2_buf);
+    let out00  = create_virtual_img[pixel_t](width, height, &mut out00_buf);
+    let out0   = create_virtual_img[pixel_t](width, height, &mut out0_buf);
+    let out1   = create_virtual_img[pixel_t](width, height, &mut out1_buf);
+    let out2   = create_virtual_img[pixel_t](width, height, &mut out2_buf);
     init_rand(bitcast[&mut[pixel_t]](arr.buf.data), arr.stride, out.height);
     init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
 

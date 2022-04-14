@@ -1,5 +1,5 @@
 
-fn init_data(arr: Img) -> () {
+fn init_data[T](arr: Img[T]) -> () {
     let buf = bitcast[&mut[pixel_t]](arr.buf.data);
 
     for y in range(0, arr.height) {
@@ -16,13 +16,13 @@ fn init_data(arr: Img) -> () {
 }
 
 
-static mut ch_in_to_blur    : pipe;
-static mut ch_in_to_sharpen : pipe;
-static mut ch_in_to_mask    : pipe;
-static mut ch_blur_to_sharpen_or_mask : pipe;
-static mut ch_blur_to_sharpen : pipe;
-static mut ch_blur_to_mask    : pipe;
-static mut ch_sharpen_to_mask : pipe;
+static mut ch_in_to_blur    : pipe[pixel_t];
+static mut ch_in_to_sharpen : pipe[pixel_t];
+static mut ch_in_to_mask    : pipe[pixel_t];
+static mut ch_blur_to_sharpen_or_mask : pipe[pixel_t];
+static mut ch_blur_to_sharpen : pipe[pixel_t];
+static mut ch_blur_to_mask    : pipe[pixel_t];
+static mut ch_sharpen_to_mask : pipe[pixel_t];
 
 fn main() -> i32 {
     let width  = 1024;
@@ -41,8 +41,8 @@ fn main() -> i32 {
     let input_image = create_host_img(width, height);
     let out_host = create_host_img(width, height);
 
-    let blur = create_virtual_img(width, height, &mut ch_blur_to_sharpen_or_mask);
-    let sharpen = create_virtual_img(width, height, &mut ch_sharpen_to_mask );
+    let blur = create_virtual_img[pixel_t](width, height, &mut ch_blur_to_sharpen_or_mask);
+    let sharpen = create_virtual_img[pixel_t](width, height, &mut ch_sharpen_to_mask );
 
     init_data(input_image);
     init_zero(bitcast[&mut[pixel_t]](out_host.buf.data), out_host.stride, out_host.height);
