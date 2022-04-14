@@ -1,4 +1,4 @@
-fn @iteration(body: fn(i32, i32) -> ())  = @|acc: Accelerator, width: i32, height: i32| {
+fn @iteration(body: fn(i32, i32) -> ()) = @|acc: Accelerator, width: i32, height: i32| {
     let grid  = (1, 1, 1);
     let block = (1, 1, 1);
     for work_item in acc.exec(grid, block) {
