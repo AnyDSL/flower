@@ -1,82 +1,82 @@
 // ---------------------------- streaming --------------------------------------
 
-fn @get_global_read_vec1[T](img: Img) -> fn(i32) -> [T * 1] {
+fn @get_global_read_vec1[T](img: Img[T]) -> fn(i32) -> [T * 1] {
     let ptr = bitcast[&addrspace(1)[[T * 1]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
 
-fn @get_global_read_vec2[T](img: Img) -> fn(i32) -> [T * 2] {
+fn @get_global_read_vec2[T](img: Img[T]) -> fn(i32) -> [T * 2] {
     let ptr = bitcast[&addrspace(1)[[T *  2]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec4[T](img: Img) -> fn(i32) -> [T * 4] {
+fn @get_global_read_vec4[T](img: Img[T]) -> fn(i32) -> [T * 4] {
     let ptr = bitcast[&addrspace(1)[[T *  4]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec8[T](img: Img) -> fn(i32) -> [T * 8] {
+fn @get_global_read_vec8[T](img: Img[T]) -> fn(i32) -> [T * 8] {
     let ptr = bitcast[&addrspace(1)[[T *  8]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec16[T](img: Img) -> fn(i32) -> [T * 16] {
+fn @get_global_read_vec16[T](img: Img[T]) -> fn(i32) -> [T * 16] {
     let ptr = bitcast[&addrspace(1)[[T *  16]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec32[T](img: Img) -> fn(i32) -> [T * 32] {
+fn @get_global_read_vec32[T](img: Img[T]) -> fn(i32) -> [T * 32] {
     let ptr = bitcast[&addrspace(1)[[T *  32]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec64[T](img: Img) -> fn(i32) -> [T * 64] {
+fn @get_global_read_vec64[T](img: Img[T]) -> fn(i32) -> [T * 64] {
     let ptr = bitcast[&addrspace(1)[[T *  64]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_read_vec128[T](img: Img) -> fn(i32) -> [T * 128] {
+fn @get_global_read_vec128[T](img: Img[T]) -> fn(i32) -> [T * 128] {
     let ptr = bitcast[&addrspace(1)[[T *  128]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx| { ptr($idx) }
 }
 
-fn @get_global_write_vec1[T](img: Img) -> fn(i32, [T * 1]) -> () {
+fn @get_global_write_vec1[T](img: Img[T]) -> fn(i32, [T * 1]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T * 1]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value }
 }
 
-fn @get_global_write_vec2[T](img: Img) -> fn(i32, [T * 2]) -> () {
+fn @get_global_write_vec2[T](img: Img[T]) -> fn(i32, [T * 2]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  2]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec4[T](img: Img) -> fn(i32, [T * 4]) -> () {
+fn @get_global_write_vec4[T](img: Img[T]) -> fn(i32, [T * 4]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  4]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec8[T](img: Img) -> fn(i32, [T * 8]) -> () {
+fn @get_global_write_vec8[T](img: Img[T]) -> fn(i32, [T * 8]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  8]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec16[T](img: Img) -> fn(i32, [T * 16]) -> () {
+fn @get_global_write_vec16[T](img: Img[T]) -> fn(i32, [T * 16]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  16]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec32[T](img: Img) -> fn(i32, [T * 32]) -> () {
+fn @get_global_write_vec32[T](img: Img[T]) -> fn(i32, [T * 32]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  32]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec64[T](img: Img) -> fn(i32, [T * 64]) -> () {
+fn @get_global_write_vec64[T](img: Img[T]) -> fn(i32, [T * 64]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  64]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
 
-fn @get_global_write_vec128[T](img: Img) -> fn(i32, [T * 128]) -> () {
+fn @get_global_write_vec128[T](img: Img[T]) -> fn(i32, [T * 128]) -> () {
     let ptr = bitcast[&mut addrspace(1)[[T *  128]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value; }
 }
