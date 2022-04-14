@@ -1,1 +1,1 @@
-type channel = channel1_i32;
+type channel_[T] = channel1[T];

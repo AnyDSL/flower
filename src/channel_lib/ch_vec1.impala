@@ -1,4 +1,4 @@
-fn @channel_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @channel_to_Mem2D_read[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     if(pFactor == 1) {
         channel_to_Mem2D_read_vec1[T] (img)
     } else {
@@ -6,7 +6,7 @@ fn @channel_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
     }
 }
 
-fn @channel_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @channel_to_Mem2D_write[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     if(pFactor == 1) {
         channel_to_Mem2D_write_vec1[T] (img)
     } else {
@@ -14,7 +14,7 @@ fn @channel_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
     }
 }
 
-fn @channel_to_Mem2D_read_vec1[T](img: Img) -> Mem2D[T] {
+fn @channel_to_Mem2D_read_vec1[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t ];
     let mut value = bitcast[[T * 1]]([ 0 ]);
     fn @update(idx: i32) -> () { value = read_channel1[T](img.fifo); }
@@ -23,7 +23,7 @@ fn @channel_to_Mem2D_read_vec1[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 1, update, read, write)
 }
 
-fn @channel_to_Mem2D_write_vec1[T](img: Img) -> Mem2D[T] {
+fn @channel_to_Mem2D_write_vec1[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t ];
     let mut value = bitcast[[T * 1]]([ 0 ]);
     fn @update(idx: i32) -> () { write_channel1[T](img.fifo, value); }
