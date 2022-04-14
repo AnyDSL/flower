@@ -2,58 +2,58 @@
 // Everything related with Img in stencil_lib
 // ---------------------------------------------------------------------------
 // pipe support
-type pipe = channel;
+type pipe[T] = channel_[T];
 
 // FPGA dataflow construction with virtual images
-struct Img {
+struct Img[T] {
     buf     : Buffer,
-    fifo    : &mut pipe,
+    fifo    : &mut pipe[T],
     virtual : bool,
     width   : i32,
     height  : i32,
     stride  : i32,
 }
 
-static mut dummy :pipe;
-fn @new_img(width: i32, height: i32, stride: i32, buf: Buffer) = Img {
-    buf = buf, fifo = &mut dummy, virtual = false, width = width, height = height, stride = stride
+static mut dummy :pipe[pixel_t];
+fn @new_img[T](width: i32, height: i32, stride: i32, buf: Buffer) = Img[T] {
+    buf = buf, fifo = bitcast[&mut channel1[T]](dummy), virtual = false, width = width, height = height, stride = stride
 };
 
-fn @alloc_img[T](img: Img, alloc: fn(i64) -> Buffer) = new_img(img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()));
+fn @alloc_img[T](img: Img[T], alloc: fn(i64) -> Buffer) = new_img[T](img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()));
 
-fn @create_host_img[T](width: i32, height: i32) -> Img {
+fn @create_host_img[T](width: i32, height: i32) -> Img[T] {
     let stride = round_up(width, get_vector_length());
     let buf = alloc_cpu((stride * height) as i64 * sizeof[T]());
-    new_img(width, height, stride, buf)
+    new_img[T](width, height, stride, buf)
 }
 
-fn @new_virtual_img(width: i32, height: i32, stride: i32, fifo: &mut pipe) -> Img {
+fn @new_virtual_img[T](width: i32, height: i32, stride: i32, fifo: &mut pipe[T]) -> Img[T] {
     let buf = alloc_cpu(0 as i64);
-    Img { buf = buf, fifo = fifo, virtual = true, width = width, height = height, stride = stride }
+    Img[T] { buf = buf, fifo = fifo, virtual = true, width = width, height = height, stride = stride }
 }
 
-fn @create_virtual_img(width: i32, height: i32, fifo: &mut pipe) -> Img {
+fn @create_virtual_img[T](width: i32, height: i32, fifo: &mut pipe[T]) -> Img[T] {
     let stride = round_up(width, get_vector_length());
     new_virtual_img(width, height, stride, fifo)
 }
 
-fn @get_acc_virtual[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T) = Acc[T] {
+fn @get_acc_virtual[T](img: Img[T], set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T) = Acc[T] {
         read  = @|x, y|    { get_pixel(x) },
         write = @|x, y, v| { set_pixel(x, v) }
     };
 
-fn @get_acc[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T) -> Acc[T] {
+fn @get_acc[T](img: Img[T], set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T) -> Acc[T] {
     if img.virtual == false {
-        let real_img = new_img(img.width, img.height, img.stride, img.buf);
+        let real_img = new_img[T](img.width, img.height, img.stride, img.buf);
         get_acc_offset[T](real_img, set_pixel, get_pixel, 0, 0)
     } else {
         get_acc_virtual[T](img, set_pixel, get_pixel)
     }
 }
 
-fn @get_acc_bh[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
+fn @get_acc_bh[T](img: Img[T], set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) -> Acc[T] {
     if img.virtual == false {
-        let real_img = new_img(img.width, img.height, img.stride, img.buf);
+        let real_img = new_img[T](img.width, img.height, img.stride, img.buf);
         get_acc_bh_offset[T](real_img, set_pixel, get_pixel, 0, 0, region, bh_lower, bh_upper)
     } else {
         get_acc_virtual[T](img, set_pixel, get_pixel)
@@ -63,12 +63,12 @@ fn @get_acc_bh[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T
 // region of interest is not supported yet
 // &   [pixel_t] on CPU/AVX
 // &[1][pixel_t] on CUDA/NVVM & OpenCL/AMDGPU
-fn @get_acc_bh_offset[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) = Acc[T] {
+fn @get_acc_bh_offset[T](img: Img[T], set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, rox: i32, roy: i32, region: Region, bh_lower: BoundaryFn[T], bh_upper: BoundaryFn[T]) = Acc[T] {
         read  = @|x, y|    read_pixel[T](x + rox, y + roy, region, RoI { o_x = 0, o_y = 0, width = img.width, height = img.height }, @|x, y| { get_pixel(y * img.stride + x) }, bh_lower, bh_upper),
         write = @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
 };
 
-fn @get_acc_offset[T](img: Img, set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, rox: i32, roy: i32) = Acc[T] {
+fn @get_acc_offset[T](img: Img[T], set_pixel: fn(i32, T) -> (), get_pixel: fn(i32) -> T, rox: i32, roy: i32) = Acc[T] {
         read  = @|x, y|    get_pixel((y + roy) * img.stride + x + rox),
         write = @|x, y, v| set_pixel((y + roy) * img.stride + x + rox, v)
 };
@@ -84,25 +84,25 @@ fn @create_Mem2D_write[T](width: i32, height: i32, pFactor: i32, update: fn(i32)
     Mem2D[T]{ read = @|x|{ bitcast[T](0)}, write = write, height = height, width = width, stride = stride, pFactor = pFactor, update = update}
 }
 
-fn @create_Mem2D_from_img[T](img: Img, pFactor: i32, update: fn(i32) -> (), read: fn(i32) -> T, write: fn(i32, T) -> ()) -> Mem2D[T] {
+fn @create_Mem2D_from_img[T](img: Img[T], pFactor: i32, update: fn(i32) -> (), read: fn(i32) -> T, write: fn(i32, T) -> ()) -> Mem2D[T] {
     Mem2D[T]{ read = read, write = write, height = img.height, width = img.width, stride = img.stride, pFactor = pFactor, update = update}
 }
 
 
-fn @Img_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @Img_to_Mem2D_read[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     //let pFactor = get_vector_length();
     if img.virtual == false {
-        let real_img = new_img(img.width, img.height, img.stride, img.buf);
+        let real_img = new_img[T](img.width, img.height, img.stride, img.buf);
         global_Img_to_Mem2D_read[T](real_img, pFactor)
     } else {
         channel_to_Mem2D_read[T](img, pFactor)
     }
 }
 
-fn @Img_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @Img_to_Mem2D_write[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     //let pFactor = get_vector_length();
     if img.virtual == false {
-        let real_img = new_img(img.width, img.height, img.stride, img.buf);
+        let real_img = new_img[T](img.width, img.height, img.stride, img.buf);
         global_Img_to_Mem2D_write[T](real_img, pFactor)
     } else {
         channel_to_Mem2D_write[T](img, pFactor)
@@ -110,7 +110,7 @@ fn @Img_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
 }
 
 
-fn @global_Img_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_read[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     match pFactor {
          1  => get_global_stream_vec1[T] (img),
          2  => get_global_stream_vec2[T] (img),
@@ -124,7 +124,7 @@ fn @global_Img_to_Mem2D_read[T](img: Img, pFactor: i32) -> Mem2D[T] {
     }
 }
 
-fn @global_Img_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write[T](img: Img[T], pFactor: i32) -> Mem2D[T] {
     match pFactor {
          1 => global_Img_to_Mem2D_write_vec1[T] (img),
          2 => global_Img_to_Mem2D_write_vec2[T] (img),
@@ -138,7 +138,7 @@ fn @global_Img_to_Mem2D_write[T](img: Img, pFactor: i32) -> Mem2D[T] {
     }
 }
 
-fn @get_global_stream_vec1[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec1[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [0 as pixel_t];
     //let mut value = bitcast[T]([0]);
     //let mut value = bitcast[&T]([0]);
@@ -151,7 +151,7 @@ fn @get_global_stream_vec1[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 1, update, read, write)
 }
 
-fn @get_global_stream_vec2[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec2[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 2 ];
     let mut value = bitcast[[T * 2]]([0; 2]);
     let global_read_fn = get_global_read_vec2[T](img);
@@ -161,7 +161,7 @@ fn @get_global_stream_vec2[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 2, update, read, write)
 }
 
-fn @get_global_stream_vec4[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec4[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 4 ];
     let mut value = bitcast[[T * 4]]([0; 4]);
     let global_read_fn = get_global_read_vec4[T](img);
@@ -171,7 +171,7 @@ fn @get_global_stream_vec4[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 4, update, read, write)
 }
 
-fn @get_global_stream_vec8[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec8[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 8 ];
     let mut value = bitcast[[T * 8]]([0; 8]);
     let global_read_fn = get_global_read_vec8[T](img);
@@ -181,7 +181,7 @@ fn @get_global_stream_vec8[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 8, update, read, write)
 }
 
-fn @get_global_stream_vec16[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec16[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 16 ];
     let mut value = bitcast[[T * 16]]([0; 16]);
     let global_read_fn = get_global_read_vec16[T](img);
@@ -191,7 +191,7 @@ fn @get_global_stream_vec16[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 16, update, read, write)
 }
 
-fn @get_global_stream_vec32[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec32[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 32 ];
     let mut value = bitcast[[T * 32]]([0; 32]);
     let global_read_fn = get_global_read_vec32[T](img);
@@ -201,7 +201,7 @@ fn @get_global_stream_vec32[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 32, update, read, write)
 }
 
-fn @get_global_stream_vec64[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec64[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 64 ];
     let mut value = bitcast[[T * 64]]([0; 64]);
     let global_read_fn = get_global_read_vec64[T](img);
@@ -211,7 +211,7 @@ fn @get_global_stream_vec64[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 64, update, read, write)
 }
 
-fn @get_global_stream_vec128[T](img: Img) -> Mem2D[T] {
+fn @get_global_stream_vec128[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 128 ];
     let mut value = bitcast[[T * 128]]([0; 128]);
     let global_read_fn = get_global_read_vec128[T](img);
@@ -221,7 +221,7 @@ fn @get_global_stream_vec128[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 128, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec1[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec1[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [0 as pixel_t];
     let mut value = bitcast[[T * 1]]([0]);
     let global_write_fn = get_global_write_vec1[T](img);
@@ -231,7 +231,7 @@ fn @global_Img_to_Mem2D_write_vec1[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 1, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec2[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec2[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 2 ];
     let mut value = bitcast[[T * 2]]([0 ; 2]);
     let global_write_fn = get_global_write_vec2[T](img);
@@ -241,7 +241,7 @@ fn @global_Img_to_Mem2D_write_vec2[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 2, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec4[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec4[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 4 ];
     let mut value = bitcast[[T *4]]([0; 4]);
     let global_write_fn = get_global_write_vec4[T](img);
@@ -251,7 +251,7 @@ fn @global_Img_to_Mem2D_write_vec4[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 4, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec8[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec8[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 8 ];
     let mut value = bitcast[[T * 8]]([0; 8]);
     let global_write_fn = get_global_write_vec8[T](img);
@@ -261,7 +261,7 @@ fn @global_Img_to_Mem2D_write_vec8[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 8, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec16[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec16[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 16 ];
     let mut value = bitcast[[T *16]]([0; 16]);
     let global_write_fn = get_global_write_vec16[T](img);
@@ -271,7 +271,7 @@ fn @global_Img_to_Mem2D_write_vec16[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 16, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec32[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec32[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 32 ];
     let mut value = bitcast[[T * 32]]([0; 32]);
     let global_write_fn = get_global_write_vec32[T](img);
@@ -281,7 +281,7 @@ fn @global_Img_to_Mem2D_write_vec32[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 32, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec64[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec64[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 64 ];
     let mut value = bitcast[[T * 64]]([0; 64]);
     let global_write_fn = get_global_write_vec64[T](img);
@@ -291,7 +291,7 @@ fn @global_Img_to_Mem2D_write_vec64[T](img: Img) -> Mem2D[T] {
     create_Mem2D_from_img[T](img, 64, update, read, write)
 }
 
-fn @global_Img_to_Mem2D_write_vec128[T](img: Img) -> Mem2D[T] {
+fn @global_Img_to_Mem2D_write_vec128[T](img: Img[T]) -> Mem2D[T] {
     //let mut value = [ 0 as pixel_t; 128 ];
     let mut value = bitcast[[T * 128]]([0; 128]);
     let global_write_fn = get_global_write_vec128[T](img);
