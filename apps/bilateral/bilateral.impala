@@ -6,44 +6,45 @@ fn @similarity(math: Intrinsics, c_r: f32, xi: f32, x: f32) -> f32 {
     math.expf(-c_r * diff * diff)
 }
 
-fn @bilateral_filter[T](math: Intrinsics, x: i32, y: i32, acc: Acc[T], mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
+fn @bilateral_filter(math: Intrinsics, x: i32, y: i32, acc: Acc[f32], mask: Mask[f32], sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
     let mut k = 0:f32;
     let mut p = 0:f32;
 
     for yf in unroll(-2*sigma_d, 2*sigma_d+1) {
         for xf in unroll(-2*sigma_d, 2*sigma_d+1) {
-            let diff = bitcast[pixel_t](acc.read(x + xf, y + yf)) - bitcast[pixel_t](acc.read(x, y));
+            let diff = acc.read(x + xf, y + yf) - acc.read(x, y);
 
             let c = closeness(math, c_d, xf, yf);
-            let s = similarity(math, c_r, bitcast[pixel_t](acc.read(x + xf, y + yf)), bitcast[pixel_t](acc.read(x, y)));
+            let s = similarity(math, c_r, acc.read(x + xf, y + yf), acc.read(x, y));
 
             k += c * s;
-            p += c * s * bitcast[pixel_t](acc.read(x + xf, y + yf));
+            p += c * s * acc.read(x + xf, y + yf);
         }
     }
 
     p / k
 }
 
-fn @bilateral_filter_mask[T](math: Intrinsics, x: i32, y: i32, acc: Acc[T], mask: Mask, sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
+fn @bilateral_filter_mask(math: Intrinsics, x: i32, y: i32, acc: Acc[f32], mask: Mask[f32], sigma_d: i32, c_d: f32, c_r: f32) -> f32 {
     let mut k = 0:f32;
     let mut p = 0:f32;
 
     for yf in unroll(-2*sigma_d, 2*sigma_d+1) {
         for xf in unroll(-2*sigma_d, 2*sigma_d+1) {
-            let diff = bitcast[pixel_t](acc.read(x + xf, y + yf)) - bitcast[pixel_t](acc.read(x, y));
+            let diff = acc.read(x + xf, y + yf) - acc.read(x, y);
 
             let c = mask.data(xf + 2*sigma_d, yf + 2*sigma_d);
             let s = math.expf(-c_r * diff*diff);
 
             k += c * s;
-            p += c * s * bitcast[pixel_t](acc.read(x + xf, y + yf));
+            p += c * s * acc.read(x + xf, y + yf);
         }
     }
 
     p / k
 }
 
+#[export]
 fn main() -> i32 {
     let width   = 1024;
     let height  = 1024;
@@ -67,7 +68,7 @@ fn main() -> i32 {
     //let iteration_fun = iteration_advanced;         // SS + SM
 
     //let bilateral_fun = bilateral_filter;
-    let bilateral_fun = bilateral_filter_mask[pixel_t];
+    let bilateral_fun = bilateral_filter_mask;
 
     for benchmark_host(num_host_iter) {
         for math, x, y, out_acc, arr_acc, mask in iteration_fun(math, out, arr, mask, lower, upper) {
