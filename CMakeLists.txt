@@ -115,7 +115,6 @@ else()
 endif()
 
 
-
 set(STINCILLA_COMMON_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src/common/pnm_image)
 include_directories(${STINCILLA_COMMON_INCLUDE_DIRS})
 

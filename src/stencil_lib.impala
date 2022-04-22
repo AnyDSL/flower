@@ -320,8 +320,8 @@ fn @check[T](in_acc: Acc[T], out_acc: Acc[T], ref_acc: Acc[T], prop: RoI) -> i32
         display_image(ref_acc, roi_x, roi_y);
         print_string("Test FAILED @ (");
         print_i32(err_x); print_string(", "); print_i32(err_y); print_string(")!\n");
-        print_pixel(bitcast[pixel_t](ref_acc.read(err_x, err_y))); print_string( " (ref) vs ");
-        print_pixel(bitcast[pixel_t](out_acc.read(err_x, err_y))); print_string( " (res)\n");
+        print_pixel(ref_acc.read(err_x, err_y)); print_string( " (ref) vs ");
+        print_pixel(out_acc.read(err_x, err_y)); print_string( " (res)\n");
     }
     passed
 }
