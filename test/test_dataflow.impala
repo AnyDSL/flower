@@ -14,6 +14,8 @@ fn @read(buf: Buffer, i: i32) -> f32 { bitcast[&addrspace(1)[f32]](buf.data)(i) 
 fn @write(buf: Buffer, i: i32, v: f32) -> () { bitcast[&mut addrspace(1)[f32]](buf.data)(i) = v }
 
 static mut chan: channel[f32];
+
+#[export]
 fn main() -> i32 {
 
     let width   = 2048;

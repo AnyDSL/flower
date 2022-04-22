@@ -1,3 +1,4 @@
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

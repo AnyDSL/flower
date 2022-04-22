@@ -2,6 +2,7 @@
 static mut mm_to_str_buf: pipe[pixel_t];
 static mut str_to_mm_buf: pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

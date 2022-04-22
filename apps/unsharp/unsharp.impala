@@ -24,6 +24,7 @@ static mut ch_blur_to_sharpen : pipe[pixel_t];
 static mut ch_blur_to_mask    : pipe[pixel_t];
 static mut ch_sharpen_to_mask : pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

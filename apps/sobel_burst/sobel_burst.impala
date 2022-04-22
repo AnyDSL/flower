@@ -16,6 +16,7 @@ static mut ch_in_to_gy  : pipe[pixel_t];
 static mut ch_gx_to_mag : pipe[pixel_t];
 static mut ch_gy_to_mag : pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

@@ -57,6 +57,7 @@ static mut channel_wiyy_to_v_x   : pipe[pixel_t];
 static mut channel_wixx_to_denom : pipe[pixel_t];
 static mut channel_wixx_to_v_y   : pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

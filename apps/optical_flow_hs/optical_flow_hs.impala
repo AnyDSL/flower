@@ -102,7 +102,7 @@ static mut channel_v1_y : pipe[pixel_t];
 static mut channel_v2_y : pipe[pixel_t];
 static mut channel_v3_y : pipe[pixel_t];
 
-
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

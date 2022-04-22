@@ -12,6 +12,7 @@ fn init_data[T](arr: Img[T]) -> () {
 
 static mut luma_c : pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;

@@ -1,6 +1,7 @@
 static mut out0_buf: pipe[pixel_t];
 static mut out1_buf: pipe[pixel_t];
 
+#[export]
 fn main() -> i32 {
     let width  = 1024;
     let height = 1024;
