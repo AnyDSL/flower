@@ -16,7 +16,7 @@ struct Img[T] {
 
 static mut dummy :pipe[pixel_t];
 fn @new_img[T](width: i32, height: i32, stride: i32, buf: Buffer) = Img[T] {
-    buf = buf, fifo = bitcast[&mut channel1[T]](dummy), virtual = false, width = width, height = height, stride = stride
+    buf = buf, fifo = bitcast[&mut channel_[T]](dummy), virtual = false, width = width, height = height, stride = stride
 };
 
 fn @alloc_img[T](img: Img[T], alloc: fn(i64) -> Buffer) = new_img[T](img.width, img.height, img.stride, alloc((img.stride * img.height) as i64 * sizeof[T]()));
