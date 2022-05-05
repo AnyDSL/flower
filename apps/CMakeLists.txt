@@ -96,7 +96,7 @@ endif()
 anydsl_runtime_wrap(BILATERAL_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES_F32} ${BILATERAL_FILES})
 add_executable(bilateral ${BILATERAL_PROGRAM})
@@ -106,7 +106,7 @@ add_test("bilateral" bilateral)
 anydsl_runtime_wrap(BILATERAL_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES_F32} ${BILATERAL_BURST_FILES})
 add_executable(bilateral_burst ${BILATERAL_BURST_PROGRAM})
@@ -116,7 +116,7 @@ add_test("bilateral_burst" bilateral_burs)
 anydsl_runtime_wrap(BOX_FILTER_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${BOX_FILTER_FILES})
 add_executable(box_filter ${BOX_FILTER_PROGRAM})
@@ -126,7 +126,7 @@ add_test("box_filter" box_filter)
 anydsl_runtime_wrap(BOX_FILTER_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${BOX_FILTER_BURST_FILES})
 add_executable(box_filter_burst ${BOX_FILTER_BURST_PROGRAM})
@@ -136,7 +136,7 @@ add_test("box_filter_burst" box_filter_burst)
 anydsl_runtime_wrap(LAPLACE_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${LAPLACE_FILES})
 add_executable(laplace ${LAPLACE_PROGRAM})
@@ -146,7 +146,7 @@ add_test("laplace" laplace)
 anydsl_runtime_wrap(LAPLACE_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${LAPLACE_BURST_FILES})
 add_executable(laplace_burst ${LAPLACE_BURST_PROGRAM})
@@ -156,7 +156,7 @@ add_test("laplace_burst" laplace_burst)
 anydsl_runtime_wrap(GAUSSIAN_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${GAUSSIAN_FILES})
 add_executable(gaussian ${GAUSSIAN_PROGRAM})
@@ -166,7 +166,7 @@ add_test("gaussian" gaussian)
 anydsl_runtime_wrap(GAUSSIAN_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${GAUSSIAN_BURST_FILES})
 add_executable(gaussian_burst ${GAUSSIAN_BURST_PROGRAM})
@@ -176,7 +176,7 @@ add_test("gaussian_burst" gaussian_burst)
 anydsl_runtime_wrap(SOBEL_LUMA_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SOBEL_LUMA_FILES})
 add_executable(sobel_luma ${SOBEL_LUMA_PROGRAM})
@@ -186,7 +186,7 @@ add_test("sobel_luma" sobel_luma)
 anydsl_runtime_wrap(SOBEL_LUMA_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SOBEL_LUMA_BURST_FILES})
 add_executable(sobel_luma_burst ${SOBEL_LUMA_BURST_PROGRAM})
@@ -196,7 +196,7 @@ add_test("sobel_luma_burst" sobel_luma_burst)
 anydsl_runtime_wrap(SOBEL_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SOBEL_BURST_FILES})
 add_executable(sobel_burst ${SOBEL_BURST_PROGRAM})
@@ -206,7 +206,7 @@ add_test("sobel_burst" sobel_burst)
 anydsl_runtime_wrap(UNSHARP_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${UNSHARP_FILES})
 add_executable(unsharp ${UNSHARP_PROGRAM})
@@ -216,7 +216,7 @@ add_test("unsharp" unsharp)
 anydsl_runtime_wrap(OPTICAL_FLOW_HS_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
+    ARTIC_FLAGS ${ARTIC_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${OPTICAL_FLOW_HS_FILES})
 add_executable(optical_flow_hs ${OPTICAL_FLOW_HS_PROGRAM})
@@ -226,7 +226,7 @@ add_test("optical_flow_hs" optical_flow_hs)
 anydsl_runtime_wrap(OPTICAL_FLOW_LK_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
+    ARTIC_FLAGS ${ARTIC_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${OPTICAL_FLOW_LK_FILES})
 add_executable(optical_flow_lk ${OPTICAL_FLOW_LK_PROGRAM})
@@ -236,7 +236,7 @@ add_test("optical_flow_lk" optical_flow_lk)
 anydsl_runtime_wrap(JACOBI_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${JACOBI_FILES})
 add_executable(jacobi ${JACOBI_PROGRAM})
@@ -246,7 +246,7 @@ add_test("jacobi" jacobi)
 anydsl_runtime_wrap(JACOBI_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${JACOBI_BURST_FILES})
 add_executable(jacobi_burst ${JACOBI_BURST_PROGRAM})
@@ -256,7 +256,7 @@ add_test("jacobi_burst" jacobi_burst)
 anydsl_runtime_wrap(SQUARE_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_FILES})
 add_executable(square ${SQUARE_PROGRAM})
@@ -266,7 +266,7 @@ add_test("square" square)
 anydsl_runtime_wrap(SQUARE_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_BURST_FILES})
 add_executable(square_burst ${SQUARE_BURST_PROGRAM})
@@ -276,7 +276,7 @@ add_test("square_burst" square_burst)
 anydsl_runtime_wrap(FILTER_CHAIN_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FILTER_CHAIN_FILES})
 add_executable(filter_chain ${FILTER_CHAIN_PROGRAM})
@@ -287,7 +287,7 @@ set_target_properties(filter_chain PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUI
 anydsl_runtime_wrap(FILTER_CHAIN_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FILTER_CHAIN_BURST_FILES})
 add_executable(filter_chain_burst ${FILTER_CHAIN_BURST_PROGRAM})
@@ -298,7 +298,7 @@ set_target_properties(filter_chain_burst PROPERTIES CXX_STANDARD 11 CXX_STANDARD
 anydsl_runtime_wrap(SHI_THOMASI_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SHI_THOMASI_FILES})
 add_executable(shi_thomasi "${SHI_THOMASI_DIR}/main.cpp" ${SHI_THOMASI_PROGRAM})
@@ -309,7 +309,7 @@ set_target_properties(shi_thomasi PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIR
 anydsl_runtime_wrap(HARRIS_CORNER_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}${GMEM_OPT_DEFAULT}
+    ARTIC_FLAGS ${ARTIC_FLAGS}${GMEM_OPT_DEFAULT}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_FILES})
 add_executable(harris_corner "${HARRIS_CORNER_DIR}/main.cpp" ${HARRIS_CORNER_PROGRAM})
@@ -320,7 +320,7 @@ set_target_properties(harris_corner PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQU
 anydsl_runtime_wrap(HARRIS_CORNER_BURST_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
-    IMPALA_FLAGS ${IMPALA_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
     FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_BURST_FILES})
 add_executable(harris_corner_burst "${HARRIS_CORNER_BURST_DIR}/main.cpp" ${HARRIS_CORNER_BURST_PROGRAM})

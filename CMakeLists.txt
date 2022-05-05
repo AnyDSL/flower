@@ -102,6 +102,7 @@ elseif(BACKEND STREQUAL "opencl" AND PARALLEL STREQUAL "task" OR BACKEND STREQUA
         set(ANYDSL_FPGA "HPC" CACHE STRING "")
     endif()
     set(IMPALA_FLAGS --log-level info --hls-flags ${ANYDSL_FPGA})
+    set(ARTIC_FLAGS --log-level info --hls-flags ${ANYDSL_FPGA})
     if(BACKEND STREQUAL "hls")
         set(MAPPING_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/mapping_${DEVICE}.impala ${CMAKE_CURRENT_SOURCE_DIR}/src/mapping_fpga_img_hls.impala)
     else()
