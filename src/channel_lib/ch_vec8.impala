@@ -25,7 +25,7 @@ fn @channel_to_Mem2D_write_vec8[T](img: Img[T]) -> Mem2D[T] {
 }
 
 fn @channel_to_Mem2D_read_vec8[T](img: Img[T]) -> Mem2D[T] {
-    let mut value = [ 0 as pixel_t, .. 8 ];
+    //let mut value = [ 0 as pixel_t, .. 8 ];
     let mut value = bitcast[[T * 8]]([0; 8]);
     let pFactor = 8;
     fn @update(idx: i32) -> () { value = read_channel8[T](img.fifo); }
