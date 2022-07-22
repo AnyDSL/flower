@@ -38,4 +38,15 @@ if(DEVICE STREQUAL "fpga")
     add_executable(test_lp_nested ${TEST_LP_NESTED})
     target_link_libraries(test_lp_nested ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("lp_nested" test_lp_nested)
+
+    anydsl_runtime_wrap(TEST_RESERVE_SHARED
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        IMPALA_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_reserve_shared.impala)
+    add_executable(test_reserve_shared ${TEST_RESERVE_SHARED})
+    target_link_libraries(test_reserve_shared ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("lp_nested" test_reserve_shared)
+
 endif()
