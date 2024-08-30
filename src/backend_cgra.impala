@@ -1,7 +1,8 @@
-fn @accelerator(dev: i32) -> Accelerator { cgra_accelerator(dev) }
 static device_id = 0;
 static math = cgra_intrinsics;
 static vector_length = 1;
+
+fn @accelerator(dev: i32) -> Accelerator { cgra_accelerator(dev, 1, (-1, -1), vector_length, "stream") }
 
 fn @is_nvvm() -> bool { false }
 fn @is_cuda() -> bool { false }

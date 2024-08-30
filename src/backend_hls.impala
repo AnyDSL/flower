@@ -1,13 +1,62 @@
 fn @accelerator(dev: i32) -> Accelerator { hls_accelerator(dev) }
+
 static device_id = 0;
 static math = hls_intrinsics;
+static hls_math = hls_intrinsics;
+static cgra_math = cgra_intrinsics;
 static vector_length = 1;
+
+enum Core {
+    CPU(i32),
+    FPGA(i32),
+    CGRA(Config)
+}
+
+struct Config {
+    device: i32 = device_id,
+    runtime_ratio: f32 = 1,
+    location: (i32, i32) = (-1, -1),
+    vector_size: i32 = vector_length,
+    interface: Interface = Interface::stream
+}
+
+
+fn @get_core_backend(core: Core) -> Accelerator {
+    match core {
+        Core::FPGA(device) => hls_accelerator(device),
+        Core::CGRA(config) => cgra_accelerator(config.device, config.runtime_ratio, config.location, config.vector_size, config.interface),
+        _                  => undef[Accelerator]()
+
+    }
+}
+
+fn @get_core_intrinsics(core: Core) -> Intrinsics {
+    match core {
+        Core::FPGA(_) => hls_intrinsics,
+        Core::CGRA(_) => cgra_intrinsics,
+        _             => undef[Intrinsics]()
+    }
+}
+
+fn @get_cpu_intrinsics() -> Intrinsics {
+    cpu_intrinsics
+}
+
+fn @generate(core: Core, body: fn() -> ()) -> () {
+    let device = get_core_backend(core);
+    let grid  = (1, 1, 1);
+    let block = (1, 1, 1);
+    for work_item in device.exec(grid, block) {
+        @body();
+    }
+}
 
 fn @is_nvvm() -> bool { false }
 fn @is_cuda() -> bool { false }
 fn @is_opencl() -> bool { false }
 fn @is_amdgpu() -> bool { false }
 fn @is_hls() -> bool { true }
+fn @is_cgra() -> bool { true }
 fn @is_x86() -> bool { false }
 fn @is_sse() -> bool { false }
 fn @is_avx() -> bool { false }
