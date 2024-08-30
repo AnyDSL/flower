@@ -48,7 +48,7 @@ if(BACKEND STREQUAL "hls")
     set(GMEM_BANKS_OPT OFF CACHE BOOL "FPGA memory bank optimization")
     message(STATUS "FPGA memory bank optimization: ${GMEM_BANKS_OPT}")
 
-    set(ANYDSL_FPGA "HPC,USE_SIM_DATA,ITER=10" CACHE STRING "Interface, Simulated data for AIE, and iterations on simulated data. <None/HPC/SOC/HPC_STREAM/BENCHMARK, GMEM_OPT>,<USE_SIM_DATA>,<ITER=#num>")
+    set(ANYDSL_FPGA "HPC,USE_SIM_DATA,ITERATION=10" CACHE STRING "Interface, Simulated data for AIE, and iterations on simulated data. <None/HPC/SOC/HPC_STREAM/BENCHMARK, GMEM_OPT>,<USE_SIM_DATA>,<ITER=#num>")
     message(STATUS "Application configurations: ${ANYDSL_FPGA}")
 
 
