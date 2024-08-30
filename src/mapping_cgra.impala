@@ -1,0 +1,2 @@
+// Abstractions for standalone CGRA backend
+// Not supported by compiler yet (GMIO implementation and XRT support are missing)
