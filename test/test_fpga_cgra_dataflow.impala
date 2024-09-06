@@ -118,11 +118,9 @@ fn main() -> i32 {
         write(out_fpga, idx, read_channel[f32](&mut chan_cgra_to_fpga));
     }
 
-  // copy back from fpga to host
-    copy(out_fpga, out);
-
     sync_device(fpga);
 
+    // copy back from fpga to host
     copy(out_fpga, out);
 
 
