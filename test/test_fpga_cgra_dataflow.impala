@@ -33,7 +33,7 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
 
             generate(core,||{
                 for x in range(0, width) {
-                    for y in range(0, height) {
+                    for y in pipeline(0, 0, height) {
                         @body(x, y);
                     }
                 }
@@ -49,7 +49,7 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
                 _ => {
                     generate(core,||{
                         for x in range(0, width) {
-                            for y in range(0, height) {
+                            for y in pipeline(0, 0, height) {
                                 @body(x, y);
                             }
                         }
