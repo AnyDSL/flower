@@ -19,6 +19,17 @@ if(DEVICE STREQUAL "fpga")
     target_link_libraries(test_fpga_cgra_dataflow ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("fpga_cgra_dataflow" test_fpga_cgra_dataflow)
 
+    anydsl_runtime_wrap(TEST_FPGA_MULTI_KERNEL_CGRA_DATA_FLOW
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fpga_multi_kernel_cgra_dataflow.impala)
+    add_executable(test_fpga_multi_kernel_cgra_dataflow ${TEST_FPGA_MULTI_KERNEL_CGRA_DATA_FLOW})
+    target_link_libraries(test_fpga_multi_kernel_cgra_dataflow ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("fpga_multi_kernel_cgra_dataflow" test_fpga_multi_kernel_cgra_dataflow)
+
+
     anydsl_runtime_wrap(TEST_DATA_FLOW
         FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}

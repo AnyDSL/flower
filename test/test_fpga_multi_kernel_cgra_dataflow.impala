@@ -1,0 +1,156 @@
+type DATA_TYPE = f32;
+fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+    generate(core,||{
+        for x in range(0, width) {
+            for y in range(0, height) {
+                @body(x, y);
+            }
+        }
+
+    });
+};
+
+fn @alloc_device(core: Core, size: i64) -> Buffer {
+    get_core_backend(core).alloc(size)
+}
+
+fn @sync_device(core: Core) -> () {
+    let device = get_core_backend(core);
+    device.sync()
+}
+
+
+fn @iteration_stream(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+    generate(core,||{
+                @body(1, 1);
+    });
+
+};
+
+
+fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+    match core {
+        Core::FPGA(_) => {
+
+            generate(core,||{
+                for x in range(0, width) {
+                    for y in pipeline(0, 0, height) {
+                        @body(x, y);
+                    }
+                }
+            });
+        },
+        Core::CGRA(config) => {
+            match config.interface {
+                Interface::stream => {
+                    generate(core,||{
+                        @body(1, 1);
+                    });
+                },
+                _ => {
+                    generate(core,||{
+                        for x in range(0, width) {
+                            for y in pipeline(0, 0, height) {
+                                @body(x, y);
+                            }
+                        }
+                    });
+                }
+            }
+        },
+        _ => ()
+    }
+};
+
+
+fn @read(buf: Buffer, i: i32) -> DATA_TYPE { bitcast[&addrspace(1)[DATA_TYPE]](buf.data)(i) }
+fn @write(buf: Buffer, i: i32, v: DATA_TYPE) -> () { bitcast[&mut addrspace(1)[DATA_TYPE]](buf.data)(i) = v }
+
+static mut chan_fpga_to_cgra: channel[DATA_TYPE];
+static mut chan_cgra_to_cgra: channel[DATA_TYPE];
+static mut chan_cgra_to_fpga: channel[DATA_TYPE];
+
+#[export]
+fn main() -> i32 {
+
+    let width   = 2048;
+    let height  = 2048;
+
+    let mut core_config = Config{device = 0, runtime_ratio = 1, location = (1,1), vector_size = 1, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra1 = Core::CGRA(core_config);
+    core_config.location = (2,1);
+    let cgra2 = Core::CGRA(core_config);
+
+
+
+
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra1);
+
+    let arr       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, width*height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    // copy from host to fpga
+    copy(arr, arr_fpga);
+
+    // read from fpga memory and write to channel
+    for x, y in iteration(fpga, width, height) {
+        let idx = y*width + x;
+        write_channel[DATA_TYPE](&mut chan_fpga_to_cgra, read(arr_fpga, idx));
+    }
+
+    for x, y in iteration(cgra1, width, height) {
+        //let idx = y*width + x;
+        let temp = read_channel(&mut chan_fpga_to_cgra);
+        write_channel[DATA_TYPE](&mut chan_cgra_to_cgra, temp);
+    }
+
+    for x, y in iteration(cgra2, width, height) {
+        //let idx = y*width + x;
+        let temp = read_channel(&mut chan_cgra_to_cgra);
+        write_channel[DATA_TYPE](&mut chan_cgra_to_fpga, temp);
+    }
+
+    // read from channel and write to fpga memory
+    for x, y in iteration(fpga, width, height) {
+        let idx = y*width + x;
+        write(out_fpga, idx, read_channel[DATA_TYPE](&mut chan_cgra_to_fpga));
+    }
+
+    sync_device(fpga);
+
+    // copy back from fpga to host
+    copy(out_fpga, out);
+
+
+    // verify the result
+    let mut passed = 0;
+    for i in range(0, width*height) {
+        if bitcast[&[DATA_TYPE]](out.data)(i) != bitcast[&[DATA_TYPE]](arr.data)(i) { passed++; }
+    }
+
+    if passed == 0 {
+        print_string("Test PASSED!\n");
+    } else {
+        print_string("Test FAILED!\n");
+    }
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    if passed >= 256 { 255 } else { passed }
+}
