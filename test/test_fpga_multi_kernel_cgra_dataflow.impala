@@ -75,12 +75,13 @@ fn main() -> i32 {
 
     let width   = 2048;
     let height  = 2048;
+    let auto_locate = (-1, -1);
 
-    let mut core_config = Config{device = 0, runtime_ratio = 1, location = (1,1), vector_size = 1, interface = Interface::window};
+    let mut core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = 1, interface = Interface::window};
 
     let fpga = Core::FPGA(core_config.device);
     let cgra1 = Core::CGRA(core_config);
-    core_config.location = (2,1);
+    core_config.location = auto_locate;
     let cgra2 = Core::CGRA(core_config);
 
 
