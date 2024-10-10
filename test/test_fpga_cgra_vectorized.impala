@@ -1,5 +1,5 @@
 type DATA_TYPE = f32;
-static v_size = 4;
+static v_size = 8;
 
 fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
     generate(core,||{
@@ -35,8 +35,8 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
         Core::FPGA(_) => {
 
             generate(core,||{
-                for x in range(0, width/4) {
-                    for y in pipeline(0, 0, height/4) {
+                for x in range(0, width) {
+                    for y in pipeline(0, 0, height) {
                         @body(x, y);
                     }
                 }
@@ -51,8 +51,8 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
                 },
                 _ => {
                     generate(core,||{
-                        for x in range(0, width/4) {
-                            for y in pipeline(0, 0, height/4) {
+                        for x in range(0, width / v_size) {
+                            for y in pipeline(0, 0, height / v_size) {
                                 @body(x, y);
                             }
                         }
@@ -65,11 +65,11 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
 };
 
 
-fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 4] { bitcast[&addrspace(1)[[DATA_TYPE * 4]]](buf.data)(i) }
-fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 4]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 4]]](buf.data)(i) = v }
+fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 8] { bitcast[&addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) }
+fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) = v }
 
-static mut chan_fpga_to_cgra: channel4[DATA_TYPE];
-static mut chan_cgra_to_fpga: channel4[DATA_TYPE];
+static mut chan_fpga_to_cgra: channel8[DATA_TYPE];
+static mut chan_cgra_to_fpga: channel8[DATA_TYPE];
 
 #[export]
 fn main() -> i32 {
@@ -104,21 +104,21 @@ fn main() -> i32 {
     // read from fpga memory and write to channel
     for x, y in iteration(fpga, width, height) {
         let idx = y*width + x;
-        write_channel4(&mut chan_fpga_to_cgra, read(arr_fpga, idx));
+        write_channel8(&mut chan_fpga_to_cgra, read(arr_fpga, idx));
     }
 
 
     for x, y in iteration(cgra, width, height) {
         //let idx = y*width + x;
-        let temp = read_channel4(&mut chan_fpga_to_cgra);
-        write_channel4(&mut chan_cgra_to_fpga, temp);
+        let temp = read_channel8(&mut chan_fpga_to_cgra);
+        write_channel8(&mut chan_cgra_to_fpga, temp);
     }
 
 
     // read from channel and write to fpga memory
     for x, y in iteration(fpga, width, height) {
         let idx = y*width + x;
-        write(out_fpga, idx, read_channel4(&mut chan_cgra_to_fpga));
+        write(out_fpga, idx, read_channel8(&mut chan_cgra_to_fpga));
     }
 
     sync_device(fpga);
