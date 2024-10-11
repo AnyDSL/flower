@@ -81,4 +81,16 @@ if(DEVICE STREQUAL "fpga")
     target_link_libraries(test_reserve_shared ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("lp_nested" test_reserve_shared)
 
+    anydsl_runtime_wrap(TEST_FIR_VECTORIZED
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir_vectorized.impala)
+    add_executable(test_fir_vectorized ${TEST_FIR_VECTORIZED})
+    target_link_libraries(test_fir_vectorized ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir_vectorized" test_fir_vectorized)
+
+
+
 endif()
