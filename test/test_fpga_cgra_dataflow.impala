@@ -1,8 +1,8 @@
 type DATA_TYPE = i32;
 fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
     generate(core,||{
-        for x in range(0, width) {
-            for y in range(0, height) {
+        for y in range(0, height) {
+            for x in range(0, width) {
                 @body(x, y);
             }
         }
@@ -33,8 +33,8 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
         Core::FPGA(_) => {
 
             generate(core,||{
-                for x in range(0, width) {
-                    for y in pipeline(0, 0, height) {
+                for y in range(0, height) {
+                    for x in pipeline(0, 0, width) {
                         @body(x, y);
                     }
                 }
@@ -49,8 +49,8 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
                 },
                 _ => {
                     generate(core,||{
-                        for x in range(0, width) {
-                            for y in pipeline(0, 0, height) {
+                        for y in range(0, height) {
+                            for x in pipeline(0, 0, width) {
                                 @body(x, y);
                             }
                         }
