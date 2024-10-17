@@ -273,6 +273,17 @@ add_executable(square_burst ${SQUARE_BURST_PROGRAM})
 target_link_libraries(square_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_burst" square_burst)
 
+anydsl_runtime_wrap(FIR_VECTORIZED_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FIR_VECTORIZED_FILES})
+add_executable(fir_vectorized ${FIR_VECTORIZED_PROGRAM})
+target_link_libraries(fir_vectorized ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(fir_vectorized PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+
+
 anydsl_runtime_wrap(FILTER_CHAIN_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}

@@ -1,8 +1,50 @@
+type DATA_TYPE = i32;
+static v_size = 8;
+
 fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
 
 fn read_channel_v8[T](ch: &mut channel[T]) -> T {
     cgra_window_readincr_v[T](8, ch)
 }
+
+fn @sync_device(core: Core) -> () {
+    let device = get_core_backend(core);
+    device.sync()
+}
+
+fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+    match core {
+        Core::FPGA(_) => {
+
+            generate(core,||{
+                for y in range(0, height) {
+                    for x in pipeline(0, 0, width) {
+                        @body(x, y);
+                    }
+                }
+            });
+        },
+        Core::CGRA(config) => {
+            match config.interface {
+                Interface::stream => {
+                    generate(core,||{
+                        @body(1, 1);
+                    });
+                },
+                _ => {
+                    generate(core,||{
+                        for y in range(0, height / v_size) {
+                            for x in pipeline(0, 0, width / v_size) {
+                                @body(x, y);
+                            }
+                        }
+                    });
+                }
+            }
+        },
+        _ => ()
+    }
+};
 
 fn sliding_mul_i32(lane_size: u32, fir_taps: u32, coeff:i32, data:i32, data_start:u32) -> u64 {
     // 32b x 32b
@@ -16,42 +58,63 @@ fn sliding_mul_i32(lane_size: u32, fir_taps: u32, coeff:i32, data:i32, data_star
 
 fn sliding_mul_8x8_i32(coeff:i32, data:i32, data_start:u32) = sliding_mul_i32(8, 8, coeff:i32, data:i32, data_start:u32);
 
+fn @alloc_device(core: Core, size: i64) -> Buffer {
+    get_core_backend(core).alloc(size)
+}
+
 static static_mask = [0, 1, 2, 3, 4, 5, 6, 7];
 
-fn @read[T](buf: MEM, i: i32) -> T { bitcast[&addrspace(1)[T]](buf)(i)}
-fn @write(buf: &mut [i32], i: i32, v: i32) -> () { bitcast[&mut addrspace(1)[i32]](buf)(i) = v }
+fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 8] { bitcast[&addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) }
+fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) = v }
 
-static mut ch1 : channel[i32];
+static mut ch1 : channel8[i32];
+//static mut ch2 : channel8[i32];
 static mut ch2 : channel[i32];
 
 
-struct CGRA_CONFIG {
-    device: i32 = 0,
-    runtime_ratio: f32 = 1,
-    location: (i32, i32) = (-10, -10),
-    vector_size: i32 = 16
-}
-
-struct MEM {
-    mem: &mut[i32]
-}
-
 #[export]
 fn main() -> () {
+    let width = 2048;
+    let height = 1;
     let device = 0;
     let ptr_in = alloc(runtime_device(2, device), sizeof[i32]() * 4:i64).data as &mut [i32];
     let ptr_out = alloc(runtime_device(2, device), sizeof[i32]() * 4:i64).data as &mut [i32];
 
-    let aa = MEM{mem = alloc(runtime_device(2, device), sizeof[i32]() * 4:i64).data as &mut [i32]};
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = 16, interface = Interface::window};
 
-    hls(device, || {
-        write_channel[i32](&mut ch1, read[i32](aa, 0));
-    });
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
 
-    let config_k1 = CGRA_CONFIG{device = 0, runtime_ratio = 0.5, location = (-1, -1)};
-    cgra_window(config_k1.device, config_k1.runtime_ratio, config_k1.location, config_k1.vector_size, || {
+    let arr       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, width*height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    // copy from host to fpga
+    copy(arr, arr_fpga);
+
+
+    // read from fpga memory and write to channel
+    for x, y in iteration(fpga, width, height) {
+        let idx = y*width + x;
+        write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+    }
+
+
+    cgra_window(core_config.device, core_config.runtime_ratio, core_config.location, core_config.vector_size, || {
         let shared_mask = reserve_shared[i32](8);
-        let lane_size = config_k1.vector_size as u32;
+        let lane_size = core_config.vector_size as u32;
         let data = cgra_zeros[i32](lane_size);
         let coeff = cgra_load_v[i32](8, &static_mask(0));
         let mut acc : u64;
@@ -60,21 +123,25 @@ fn main() -> () {
         for _i in aie_pipeline(0, 30) {
 
             // Read 8 samples and insert them in the second part of the data vector
-            //let data_1 = read_channel( &mut ch1);
-            let data_1 = cgra_window_readincr_v(8, &mut ch1);
-            cgra_insert(data, 1, data_1);		// 0...0 | d0..d7
+            let data_1 = read_channel8(&mut ch1);
+            //let data_1 = cgra_window_readincr_v(8, &mut ch1);
+            let data_1_casted = bitcast[i32](data_1);
+            cgra_insert[DATA_TYPE](data, 1, data_1_casted);		// 0...0 | d0..d7
 
             ///Run multiply operation
             acc = sliding_mul_8x8_i32(coeff, data, 1);
 
             //Output 8 samples
             let res_vector_1 = cgra_shift_round_saturate[i32](8, acc, 0);
+            //write_channel(&mut ch2, res_vector_1);
             write_channel(&mut ch2, res_vector_1);
 
 
             // Read 8 samples and insert then in the first part of the data vector
-            let data_2 = cgra_window_readincr_v(8, &mut ch1);
-            cgra_insert(data, 0, data_2);		// d8...d15 | d0..d7
+            //let data_2 = cgra_window_readincr_v(8, &mut ch1);
+            let data_2 = read_channel8(&mut ch1);
+            let data_2_casted = bitcast[i32](data_2);
+            cgra_insert[DATA_TYPE](data, 0, data_2_casted);		// d8...d15 | d0..d7
 
             ///Run multiply operation
             acc = sliding_mul_8x8_i32(coeff, data, 9);
@@ -85,8 +152,23 @@ fn main() -> () {
         }
     });
 
-    hls(device,|| {
-        write(ptr_out, 0, read_channel(&mut ch2));
-    });
+
+    // read from channel and write to fpga memory
+    for x, y in iteration(fpga, width, height) {
+        let idx = y*width + x;
+        let ch2_casted = bitcast[&mut channel8[i32]](ch2);
+        write(out_fpga, idx, read_channel8[DATA_TYPE](ch2_casted));
+    }
+
+    sync_device(fpga);
+    // copy back from fpga to host
+    copy(out_fpga, out);
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
 
 }

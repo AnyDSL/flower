@@ -1,4 +1,5 @@
 type DATA_TYPE = i32;
+
 fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
     generate(core,||{
         for y in range(0, height) {

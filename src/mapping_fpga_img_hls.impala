@@ -40,7 +40,7 @@ fn @get_global_read_vec128[T](img: Img[T]) -> fn(i32) -> [T * 128] {
 }
 
 fn @get_global_write_vec1[T](img: Img[T]) -> fn(i32, [T * 1]) -> () {
-    let ptr = bitcast[&mut addrspace(1)[[T * 1]]](bitcast[&addrspace (1)[T]](img.buf.data));
+    let ptr = bitcast[&mut addrspace(1)[[T * 1]]](bitcast[&addrspace(1)[T]](img.buf.data));
     |idx, value| { ptr($idx) = value }
 }
 
