@@ -3,25 +3,6 @@ static v_size = 8;
 
 fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
 
-fn read_channel_v8[T](ch: &mut channel[T]) -> T {
-    cgra_window_readincr_v[T](8, ch)
-}
-
-#[import(cc = "device", name = "window_readincr_v_channel")] fn cgra_window_readincr_v8[T](u32, &mut channel8[T]) -> T;
-//#[import(cc = "device", name = "window_writeincr_channel")] fn cgra_window_writeincr_v8[T](&mut channel8[T], T) -> ();
-#[import(cc = "device", name = "write_channel")] fn cgra_window_writeincr_v8[T](&mut channel8[T], T) -> ();
-
-
-fn read_channel_v8_[T](ch: &mut channel8[T]) -> T { // in gets a channel8 type but it returns a T which is a primitive type
-    cgra_window_readincr_v8[T](8, ch)
-}
-
-
-fn write_channel_v8_[T](ch: &mut channel8[T], var :T) -> () { // in gets a channel8 type but it returns a T which is a primitive type
-    cgra_window_writeincr_v8[T](ch, var)
-}
-
-
 fn @sync_device(core: Core) -> () {
     let device = get_core_backend(core);
     device.sync()
@@ -137,11 +118,7 @@ fn main() -> () {
         for _i in aie_pipeline(0, 30) {
 
             // Read 8 samples and insert them in the second part of the data vector
-            //let data_1 = read_channel8(&mut ch1);
-            //let data_1 = cgra_window_readincr_v(8, &mut ch1);
-            let data_1 = read_channel_v8_[DATA_TYPE](ch1);
-            //let data_1_casted = bitcast[i32](data_1);
-            //cgra_insert[DATA_TYPE](data, 1, data_1_casted);		// 0...0 | d0..d7
+            let data_1 = cgra_window_read_channel_v8[DATA_TYPE](ch1);
             cgra_insert[DATA_TYPE](data, 1, data_1);		// 0...0 | d0..d7
 
             ///Run multiply operation
@@ -149,16 +126,11 @@ fn main() -> () {
 
             //Output 8 samples
             let res_vector_1 = cgra_shift_round_saturate[i32](8, acc, 0);
-            //write_channel(&mut ch2, res_vector_1);
-            //write_channel8(&mut ch2, res_vector_1);
-            write_channel_v8_(&mut ch2, res_vector_1);
+            cgra_window_write_channel_v8(&mut ch2, res_vector_1);
 
 
             // Read 8 samples and insert then in the first part of the data vector
-            //let data_2 = cgra_window_readincr_v(8, &mut ch1);
-            //let data_2 = read_channel8(&mut ch1);
-            let data_2 = read_channel_v8_[DATA_TYPE](ch1);
-            //let data_2_casted = bitcast[i32](data_2);
+            let data_2 = cgra_window_read_channel_v8[DATA_TYPE](ch1);
             cgra_insert[DATA_TYPE](data, 0, data_2);		// d8...d15 | d0..d7
 
             ///Run multiply operation
@@ -166,9 +138,7 @@ fn main() -> () {
 
             //Output 8 samples
             let res_vector_2 = cgra_shift_round_saturate[i32](8, acc, 0);
-            //write_channel8(&mut ch2, res_vector_2);
-            //write_channel(&mut ch2, res_vector_2);
-            write_channel_v8_(&mut ch2, res_vector_2);
+            cgra_window_write_channel_v8(&mut ch2, res_vector_2);
         }
     });
 
@@ -176,8 +146,6 @@ fn main() -> () {
     // read from channel and write to fpga memory
     for x, y in iteration(fpga, width, height) {
         let idx = y*width + x;
-        //let mut ch2_casted = bitcast[channel8[i32]](ch2);
-        //write(out_fpga, idx, read_channel8[DATA_TYPE](ch2_casted));
         write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
     }
 
