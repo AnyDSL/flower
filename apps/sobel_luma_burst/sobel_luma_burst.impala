@@ -10,9 +10,11 @@ fn init_data[T](arr: Img[T]) -> () {
     }
 }
 
-static mut mm_to_str_buf: pipe[pixel_t];
-static mut str_to_mm_buf: pipe[pixel_t];
-static mut luma_c       : pipe[pixel_t];
+static mut mm_to_str_buf : pipe[pixel_t];
+static mut str_to_mm_buf : pipe[pixel_t];
+static mut luma_c        : pipe[pixel_t];
+static mut dx_c          : pipe[pixel_t];
+static mut dy_c          : pipe[pixel_t];
 
 #[export]
 fn main() -> i32 {
@@ -24,7 +26,9 @@ fn main() -> i32 {
     let out = create_host_img(width, height);
     let mm_to_str = create_virtual_img[pixel_t](width, height, &mut mm_to_str_buf);
     let str_to_mm = create_virtual_img[pixel_t](width, height, &mut str_to_mm_buf);
-    let luma = create_virtual_img[pixel_t](width, height, &mut luma_c );
+    let luma = create_virtual_img[pixel_t](width, height, &mut luma_c);
+    let dx = create_virtual_img[pixel_t](width, height, &mut dx_c);
+    let dy = create_virtual_img[pixel_t](width, height, &mut dy_c);
     init_data(arr);
     init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
 
@@ -42,10 +46,11 @@ fn main() -> i32 {
 
     for benchmark_host(num_host_iter) {
 
+        // Data mover : read
         for math, x, y, out, in_mm in iteration_point[pixel_t](math, mm_to_str, arr) {
             out.write(x, y, in_mm);
         }
-
+        // luma
         for math, x, y, out, arr in iteration_point[pixel_t](math, luma, mm_to_str) {
             let b = arr & 0xff;
             let g = (arr >> 8)  & 0xff;
@@ -53,16 +58,25 @@ fn main() -> i32 {
             let pix_luma = ((r * 66 + g * 129 + b * 25 + 128) >> 8) + 16;
             out.write(x, y, pix_luma);
         }
-
-        for math, x, y, out, arr, mask in iteration[pixel_t](math, str_to_mm, luma, mask_x, lower, upper) {
+        // sobel: dx
+        for math, x, y, out, arr, mask in iteration[pixel_t](math, dx, luma, mask_x, lower, upper) {
             let pix_dx = apply_stencil(x, y, arr, mask);
+            out.write(x, y, pix_dx);
+        }
+        // sobel: dy
+        for math, x, y, out, arr, mask in iteration[pixel_t](math, dy, luma, mask_y, lower, upper) {
             let pix_dy = apply_stencil(x, y, arr, mask);
+            out.write(x, y, pix_dy);
+        }
+        // sobel: magnitude
+        for math, x, y, out, pix_dx, pix_dy in iteration_point2[pixel_t](math, str_to_mm, dx, dy) {
             let val = abs(pix_dx) + abs(pix_dy);
             let mut res = 0;
             if (val > threshold) { res = 255 as pixel_t }
             out.write(x, y, res);
         }
 
+        // Data mover : write back
         for math, x, y, out, str_to_mm in iteration_point[pixel_t](math, out, str_to_mm) {
             out.write(x, y, str_to_mm);
         }

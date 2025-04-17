@@ -1,0 +1,214 @@
+/*
+ * Harris Corner
+ *
+ * A Combined Corner and Edge Detector
+ * Chris Harris and Mike Stephens - Alvey Vision Conference, 1988
+ *
+ */
+
+static mut in_c0        :channel8[pixel_t];
+static mut in_c1        :channel8[pixel_t];
+static mut str_to_mm_buf:channel8[pixel_t];
+static mut dx_c         :channel8[pixel_t];
+static mut dy_c         :channel8[pixel_t];
+static mut dxx_c        :channel8[pixel_t];
+static mut dxy_c        :channel8[pixel_t];
+static mut dyy_c        :channel8[pixel_t];
+static mut gxx_c        :channel8[pixel_t];
+static mut gxy_c        :channel8[pixel_t];
+static mut gyy_c        :channel8[pixel_t];
+
+#[export]
+fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+
+    //         -- ix -|-- ixx -- sxx -
+    //       /         \              \
+    // in --            > ixy -- sxy --> hc -- out
+    //       \         /              /
+    //         -- iy -|-- iyy -- syy -
+
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    //host buffers
+    let arr = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let harris  = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out = out_data; //initialized in main.cpp
+
+    // device buffers
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+
+    // we need to use a host buffer (arr) for input image (img_data) since our copy function needs a buffer type
+    for y in range(0, img_dim.height) {
+        for x in range(0, img_dim.width) {
+            let idx = y * img_dim.width + x;
+            let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+            arr_ptr(idx) = bitcast[&[pixel_t]](img_data)(idx);
+        }
+    }
+
+    // compute the first derivative using the Sobel operator
+    let mdx = get_mask3(sobel_mask3_x);
+    let mdy = get_mask3(sobel_mask3_y);
+    let null_mask = null_mask();
+
+    let kernel_width  = mdx.size_x;
+    let kernel_height = mdy.size_y;
+
+    for benchmark_host(num_host_iter) {
+
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga global memory and write to a channels
+        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            let data = read(arr_fpga, idx);
+            write_channel8[DATA_TYPE](&mut in_c0, data);
+            write_channel8[DATA_TYPE](&mut in_c1, data);
+        }
+
+        // dx
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](in_c0, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mdx, &mut dx_c);
+        }
+
+        // dy
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](in_c1, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mdy, &mut dy_c);
+        }
+
+        // instead of multicasting we can use point operator to replicate the splits because at the moment we don't have a proper method to
+        // split after a stencil operation
+
+        // dxx
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c);
+
+            let dxx_acc = cgra_mul[DATA_TYPE](dx_vec, dx_vec);
+            let dxx_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dxx_acc, ACC_SHIFT);
+
+            cgra_window_write_channel_v8(&mut dxx_c, dxx_vec);
+        }
+
+        // dyy
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c);
+
+            let dyy_acc = cgra_mul[DATA_TYPE](dy_vec, dy_vec);
+            let dyy_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dyy_acc, ACC_SHIFT);
+
+            cgra_window_write_channel_v8(&mut dyy_c, dyy_vec);
+        }
+
+        // dxy
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c);
+            let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c);
+
+            let dxy_acc = cgra_mul[DATA_TYPE](dx_vec, dy_vec);
+            let dxy_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dxy_acc, ACC_SHIFT);
+
+            cgra_window_write_channel_v8(&mut dxy_c, dxy_vec);
+        }
+
+        // compute gxx, gyy, gxy using Gaussian blur
+        let mg = get_mask3(gauss_mask3);
+
+        // gxx
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dxx_c, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mg, &mut gxx_c);
+        }
+
+        // gyy
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dyy_c, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mg, &mut gyy_c);
+        }
+
+        // gxy
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dxy_c, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mg, &mut gxy_c);
+        }
+
+        // compute score for Harris corner
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let gxx = cgra_window_read_channel_v8[DATA_TYPE](gxx_c);
+            let gyy = cgra_window_read_channel_v8[DATA_TYPE](gyy_c);
+            let gxy = cgra_window_read_channel_v8[DATA_TYPE](gxy_c);
+
+            let k = cgra_broadcast[DATA_TYPE](v_size, k);
+            let k_den = cgra_broadcast[DATA_TYPE](v_size, k_den);
+
+            // mul returns i64, in accum register
+            let main_diag =  cgra_mul[DATA_TYPE](gxx, gyy);
+            let anti_diag =  cgra_mul[DATA_TYPE](gxy, gxy);
+
+            let det = cgra_sub[i64](main_diag, anti_diag);
+            let det_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, det, ACC_SHIFT);
+            let trace = cgra_add[DATA_TYPE](gxx, gyy);
+
+            // trace_sq is in accum register
+            let trace_sq = cgra_mul[DATA_TYPE](trace, trace);
+            let trace_sq_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, trace_sq, ACC_SHIFT);
+            let trace_sq_k = cgra_mul[DATA_TYPE](trace_sq_vec, k);
+            let trace_sq_k_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, trace_sq_k, ACC_SHIFT);
+            let trace_sq_k_div = cgra_div[DATA_TYPE](trace_sq_k_vec, k_den);
+            let res = cgra_sub[DATA_TYPE](det_vec, trace_sq_k_div);
+
+            cgra_window_write_channel_v8(&mut str_to_mm_buf, res);
+        }
+
+        // read from channel and write to fpga global memory
+        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut str_to_mm_buf));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga gmem to host
+        copy(out_fpga, harris);
+
+    }
+    print_total_timing();
+
+    // post-processing: mark corners
+    for y in range(0, img_dim.height) {
+        for x in range(0, img_dim.width) {
+            let idx = y * img_dim.width + x;
+            let harris_value = bitcast[&[pixel_t]](harris.data)(idx);
+            if harris_value > threshold {
+                out(idx) = markHigh;
+            } else {
+                out(idx) = markLow;
+            }
+            //out(idx) = harris_value;
+        }
+    }
+
+    release(harris);
+    // releasing the rest?
+}

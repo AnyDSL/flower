@@ -1,0 +1,12 @@
+static jacobi_a = 2;
+static jacobi_b = 10 - 4 * jacobi_a;
+static diff_treshold = 0;
+
+static jacobi_mask =  [[0 as pixel_t, jacobi_b, 0 as pixel_t],
+                      [ jacobi_b, jacobi_a, jacobi_b        ],
+                      [0 as pixel_t, jacobi_b, 0 as pixel_t]];
+
+
+static jacobi_coeffs_row0 = [ 0 as pixel_t,  0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static jacobi_coeffs_row1 = [ jacobi_b as pixel_t, jacobi_a as pixel_t, jacobi_b as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static jacobi_coeffs_row2 = [ 0 as pixel_t,  0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];

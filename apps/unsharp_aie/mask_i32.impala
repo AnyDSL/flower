@@ -1,0 +1,19 @@
+static blur_mask_sep5 =  [ 1,  4,  6,  4, 1];
+
+static blur_mask5     = [[ 1,  4,  6,  4, 1 ],
+                         [ 4, 16, 24, 16, 4 ],
+                         [ 6, 24, 36, 24, 6 ],
+                         [ 4, 16, 24, 16, 4 ],
+                         [ 1,  4,  6,  4, 1 ]];
+
+static blur_coeffs_row0 = [ 1 as pixel_t,  4 as pixel_t, 6 as pixel_t, 4 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static blur_coeffs_row1 = [ 4 as pixel_t, 16 as pixel_t, 24 as pixel_t, 16 as pixel_t, 4 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static blur_coeffs_row2 = [ 6 as pixel_t,  24 as pixel_t, 36 as pixel_t, 24 as pixel_t, 6 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static blur_coeffs_row3 = [ 4 as pixel_t, 16 as pixel_t, 24 as pixel_t, 16 as pixel_t, 4 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static blur_coeffs_row4 = [ 1 as pixel_t,  4 as pixel_t, 6 as pixel_t, 4 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+
+
+static weight = 1;
+static one = 1;
+static mask_factor = 256; // ex. blur_mask5 / max_factor
+static threshold = 0;

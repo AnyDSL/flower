@@ -1,0 +1,101 @@
+
+fn init_data[T](arr: Img[T]) -> () {
+    let buf = bitcast[&mut[pixel_t]](arr.buf.data);
+
+    for y in range(0, arr.height) {
+        for x in range(0, arr.width) {
+            let val = if ((((x % 16) >= 8) & (( y % 16) < 8)) | (((x % 16) < 8) & ((y % 16) >= 8))) == false {
+                255 as pixel_t
+            }
+            else {
+                0 as pixel_t
+            };
+            buf(y * arr.stride + x) = val;
+        }
+    }
+}
+
+
+static mut ch_in_to_blur    : pipe[pixel_t];
+static mut ch_in_to_sharpen : pipe[pixel_t];
+static mut ch_in_to_mask    : pipe[pixel_t];
+static mut ch_blur_to_sharpen_or_mask : pipe[pixel_t];
+static mut ch_blur_to_sharpen : pipe[pixel_t];
+static mut ch_blur_to_mask    : pipe[pixel_t];
+static mut ch_sharpen_to_mask : pipe[pixel_t];
+
+#[export]
+fn main() -> i32 {
+    let width  = 1024;
+    let height = 1024;
+
+
+    // function declarations
+    let iteration        = iteration[pixel_t];
+    let iteration_point2 = iteration_point2[pixel_t];
+    let iteration_point3 = iteration_point3[pixel_t];
+    let split_image3     = split_image3[pixel_t];
+    let split_image      = split_image[pixel_t];
+    let get_acc          = get_acc[pixel_t];
+    let create_host_img  = create_host_img[pixel_t];
+
+    let input_image = create_host_img(width, height);
+    let out_host = create_host_img(width, height);
+
+    let blur = create_virtual_img[pixel_t](width, height, &mut ch_blur_to_sharpen_or_mask);
+    let sharpen = create_virtual_img[pixel_t](width, height, &mut ch_sharpen_to_mask );
+
+    init_data(input_image);
+    init_zero(bitcast[&mut[pixel_t]](out_host.buf.data), out_host.stride, out_host.height);
+
+    let mask = get_mask5(blur_mask5);
+
+    let lower = nobh_center[pixel_t];
+    let upper = nobh_center[pixel_t];
+    //let lower = clamp_lower[pixel_t];
+    //let upper = clamp_upper[pixel_t];
+    //let lower = mirro_lower[pixel_t];
+    //let upper = mirro_upper[pixel_t];
+    let enable_offset = 0;
+
+    for benchmark_host(num_host_iter) {
+        let (in_to_blur, in_to_sharpen, in_to_mask) = split_image3(math, input_image, &mut ch_in_to_blur , &mut ch_in_to_sharpen, &mut ch_in_to_mask);
+
+        // Blur = Blurx . Blury
+        for math, x, y, out, in_to_blur, mask in iteration(math, blur, in_to_blur, mask, lower,upper) {
+            let pix_blur = apply_stencil(x, y, in_to_blur, mask);
+            out.write(x, y, pix_blur);
+
+        }
+
+        let (blur_to_sharpen, blur_to_mask) = split_image(math, blur, &mut ch_blur_to_sharpen, &mut ch_blur_to_mask);
+
+        // Sharpen
+        for math, x, y, out, in_to_sharpen, blur_to_sharpen in iteration_point2(math, sharpen, in_to_sharpen, blur_to_sharpen) {
+            let pix_sharpen = in_to_sharpen * (one + weight) + blur_to_sharpen * (-weight);
+            out.write(x, y, pix_sharpen);
+        }
+
+        // Mask (Ratio)
+        for math, x, y, out, sharpen , blur_to_mask, in_to_mask in iteration_point3(math, out_host, sharpen, blur_to_mask, in_to_mask) {
+            let absolute_value = absolute(in_to_mask - blur_to_mask);
+            let pix_mask_out = if (absolute_value < threshold) {in_to_mask} else {sharpen};
+            out.write(x, y, pix_mask_out);
+        }
+    }
+    print_total_timing();
+
+    // display results
+    let input_image_acc = get_acc(input_image, |idx, val| { bitcast[&mut[pixel_t]](input_image.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](input_image.buf.data)(idx));
+    let out_acc = get_acc(out_host, |idx, val| { bitcast[&mut[pixel_t]](out_host.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out_host.buf.data)(idx));
+
+    let roi_x = 0;
+    let roi_y = 0;
+    display_image(input_image_acc, roi_x, roi_y);
+    display_image(out_acc, roi_x, roi_y);
+
+    release(input_image.buf);
+    release(out_host.buf);
+
+    0
+}

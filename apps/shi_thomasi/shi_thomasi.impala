@@ -97,12 +97,16 @@ fn shi_thomasi(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         // compute score for shi-thomasi
         for math, x, y, out, xx, yy, xy in iteration_point3(math, out_image, gxx, gyy, gxy) {
             let mut min = 0 as pixel_t;
+
+            // determine the minimum eigenvalue using an approximation
             if (xx < yy) {
                 min = xx;
             } else {
                 min = yy;
             };
-            out.write(x, y, min);
+
+            let aprx_res = min - abs(xy);
+            out.write(x, y, aprx_res);
         }
     }
     print_total_timing();

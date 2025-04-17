@@ -91,6 +91,45 @@ if(DEVICE STREQUAL "fpga")
     target_link_libraries(test_fir_vectorized ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("test_fir_vectorized" test_fir_vectorized)
 
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh.impala)
+    add_executable(test_fir2d_vect_nobh ${TEST_FIR2D_VECT_NOBH})
+    target_link_libraries(test_fir2d_vect_nobh ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh" test_fir2d_vect_nobh)
+
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_ABS
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh_abs.impala)
+    add_executable(test_fir2d_vect_nobh_abs ${TEST_FIR2D_VECT_NOBH_ABS})
+    target_link_libraries(test_fir2d_vect_nobh_abs ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh_abs" test_fir2d_vect_nobh_abs)
+
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_ABS_V2
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh_abs_v2.impala)
+    add_executable(test_fir2d_vect_nobh_abs_v2 ${TEST_FIR2D_VECT_NOBH_ABS_V2})
+    target_link_libraries(test_fir2d_vect_nobh_abs_v2 ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh_abs_v2" test_fir2d_vect_nobh_abs_v2)
+
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_FLAT_MASK
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh_flat_mask.impala)
+    add_executable(test_fir2d_vect_nobh_flat_mask ${TEST_FIR2D_VECT_NOBH_FLAT_MASK})
+    target_link_libraries(test_fir2d_vect_nobh_flat_mask ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh_flat_mask" test_fir2d_vect_nobh_flat_mask)
 
 
 endif()

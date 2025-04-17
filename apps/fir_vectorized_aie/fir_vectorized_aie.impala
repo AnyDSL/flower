@@ -1,67 +1,3 @@
-type DATA_TYPE = i32;
-static v_size = 8;
-
-fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
-
-fn @sync_device(core: Core) -> () {
-    let device = get_core_backend(core);
-    device.sync()
-}
-
-fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
-    match core {
-        Core::FPGA(_) => {
-
-            generate(core,||{
-                for y in range(0, height) {
-                    for x in pipeline(0, 0, width) {
-                        @body(x, y);
-                    }
-                }
-            });
-        },
-        Core::CGRA(config) => {
-            match config.interface {
-                Interface::stream => {
-                    generate(core,||{
-                        @body(1, 1);
-                    });
-                },
-                _ => {
-                    generate(core,||{
-                        for y in range(0, height / v_size) {
-                            for x in aie_pipeline(0, width / v_size) {
-                                @body(x, y);
-                            }
-                        }
-                    });
-                }
-            }
-        },
-        _ => ()
-    }
-};
-
-fn sliding_mul_i32(lane_size: u32, fir_taps: u32, coeff:i32, data:i32, data_start:u32) -> u64 {
-    // 32b x 32b
-    // ret acc80 (u64)
-    let coeff_step = 1;
-    let data_step_xy = 1;
-    let coeff_start = 1:u32;
-
-    cgra_sliding_mul_xy_ops_mul[i32, i32](lane_size, fir_taps, coeff_step, data_step_xy, coeff, coeff_start, data, data_start)
-}
-
-fn sliding_mul_8x8_i32(coeff:i32, data:i32, data_start:u32) = sliding_mul_i32(8, 8, coeff:i32, data:i32, data_start:u32);
-
-fn @alloc_device(core: Core, size: i64) -> Buffer {
-    get_core_backend(core).alloc(size)
-}
-
-static static_mask = [0, 1, 2, 3, 4, 5, 6, 7];
-
-fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 8] { bitcast[&addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) }
-fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) = v }
 
 static mut ch1 : channel8[i32];
 static mut ch2 : channel8[i32];
@@ -101,9 +37,8 @@ fn main() -> () {
 
 
         // read from fpga memory and write to channel
-        // probably we need to divide the iterations by v_size
-        for x, y in iteration(fpga, width, height) {
-            let idx = y * width + x;
+        for x, y in iteration_(fpga, width, height) {
+            let idx = y * width + x; // flattening the iteration space for 1D array
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
@@ -123,7 +58,7 @@ fn main() -> () {
                 cgra_insert[DATA_TYPE](data, 1, data_1);		// 0...0 | d0..d7
 
                 ///Run multiply operation
-                acc = sliding_mul_8x8_i32(coeff, data, 1);
+                acc = sliding_mul_8x8_i32(coeff, 1, data, 1);
 
                 //Output 8 samples
                 let res_vector_1 = cgra_shift_round_saturate[i32, u64](v_size as u32, acc, 0);
@@ -135,7 +70,7 @@ fn main() -> () {
                 cgra_insert[DATA_TYPE](data, 0, data_2);		// d8...d15 | d0..d7
 
                 ///Run multiply operation
-                acc = sliding_mul_8x8_i32(coeff, data, 9);
+                acc = sliding_mul_8x8_i32(coeff, 1, data, 9);
 
                 //Output 8 samples
                 let res_vector_2 = cgra_shift_round_saturate[i32, u64](v_size as u32, acc, 0);
@@ -145,7 +80,7 @@ fn main() -> () {
 
 
         // read from channel and write to fpga memory
-        for x, y in iteration(fpga, width, height) {
+        for x, y in iteration_(fpga, width, height) {
             let idx = y * width + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
         }

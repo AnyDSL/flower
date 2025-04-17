@@ -1,0 +1,17 @@
+static sobel_maskx = [[ -1, -2, -1],
+                      [  0,  0,  0],
+                      [  1,  2,  1]];
+
+static sobel_masky = [[ -1,  0,  1],
+                      [ -2,  0,  2],
+                      [ -1,  0,  1]];
+
+
+static sobel_x_coeffs_row0 = [ -1 as pixel_t, -2 as pixel_t, -1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static sobel_x_coeffs_row1 = [ 0 as pixel_t,  0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static sobel_x_coeffs_row2 = [ 1 as pixel_t,  2 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+
+
+static sobel_y_coeffs_row0 = [ -1 as pixel_t, 0 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static sobel_y_coeffs_row1 = [ -2 as pixel_t, 0 as pixel_t, 2 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static sobel_y_coeffs_row2 = [ -1 as pixel_t, 0 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];

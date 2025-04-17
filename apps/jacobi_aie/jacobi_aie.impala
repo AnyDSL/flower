@@ -1,0 +1,104 @@
+// Naive version: no mem access optimization, no border handling
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+
+static mut ch1 : channel8[i32];
+static mut ch2 : channel8[i32];
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+    let mask = get_mask3(jacobi_mask);
+    let kernel_width = mask.size_x;
+    let kernel_height = mask.size_y;
+
+
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga global memory and write to a channel
+        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
+            let idx = y * img_dim.width + x;
+            write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+        }
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch1, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2);
+        }
+
+        // read from the channel and write to fpga global memory
+        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
+            let idx = y * img_dim.width + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga gmem to host
+        copy(out_fpga, out);
+
+    }
+
+
+    fn reference() -> i32 {
+        // check with apply stencil function
+        let mut res = 0;
+        for y in range(0, img_dim.height) {
+            for x in range(0, img_dim.width) {
+                let mut acc = 0;
+                for j in range(0, mask.size_y) {
+                    for i in range(0, mask.size_x) {
+                        let img_x = x + i - (mask.size_x / 2);
+                        let img_y = y + j - (mask.size_y / 2);
+                        if img_x >= 0 && img_x < img_dim.width && img_y >= 0 && img_y < img_dim.height {
+                            let idx = img_y * img_dim.width + img_x;
+                            //acc += mask.data(j, i) * arr.data(idx); needs cast to type
+                        }
+                    }
+                }
+                let out_idx = y * img_dim.width + x;
+                //out.data(out_idx) = acc; // needs cast to type
+                //let mut diff = ref - out_acc.read(x, y);
+                //if diff < 0 as pixel_t  { diff = -diff; }
+                //if diff > diff_treshold { passed = 42; }
+                res += acc;
+            }
+        }
+        res
+    }
+
+    let result = reference();
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}
+

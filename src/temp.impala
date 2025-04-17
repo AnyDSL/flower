@@ -1,0 +1,17 @@
+
+fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+
+    generate(core,||{
+        match core {
+            Core::CGRA(config) => {
+            }
+        }
+
+
+    });
+
+};
+
+
+//return iterator and accelerator
+//make several iterators and decide by core config

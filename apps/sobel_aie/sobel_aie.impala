@@ -1,0 +1,127 @@
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+
+static mut ch_in_to_gx   : channel8[pixel_t];
+static mut ch_in_to_gy   : channel8[pixel_t];
+static mut ch_gx_to_mag  : channel8[pixel_t];
+static mut ch_gy_to_mag  : channel8[pixel_t];
+static mut ch_mag_to_out : channel8[pixel_t];
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+
+    let mask_x    = get_mask3(sobel_maskx);
+    let mask_y    = get_mask3(sobel_masky);
+    let null_mask = null_mask();
+
+    let threshold = 80 as pixel_t;
+
+    let kernel_width  = mask_x.size_x;
+    let kernel_height = mask_y.size_y;
+
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    let arr      = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out      = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+
+        // simulating a 2D traversal in a linear fashion.
+        let x = i % img_dim.width;
+        let y = i / img_dim.width;
+
+        let val = if ((((x % 16) >= 8) & (( y % 16) < 8)) | (((x % 16) < 8) & ((y % 16) >= 8))) == false { 255 as pixel_t }
+                  else { 0 as pixel_t }; // a checkerboard pattern
+
+        arr_ptr(i) = val as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga global memory and write to a channels
+        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            let data = read(arr_fpga, idx);
+            write_channel8[DATA_TYPE](&mut ch_in_to_gx, data);
+            write_channel8[DATA_TYPE](&mut ch_in_to_gy, data);
+        }
+
+        // gx
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_x) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_gx, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mask_x, &mut ch_gx_to_mag);
+        }
+        // gy
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_y) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_gy, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mask_y, &mut ch_gy_to_mag);
+        }
+        // magnitude
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+
+            let gx_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gx_to_mag);
+            let gy_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gy_to_mag);
+
+            let gx_mag = cgra_abs(gx_to_mag);
+            let gy_mag = cgra_abs(gy_to_mag);
+            let val =  cgra_add[DATA_TYPE](gx_mag, gy_mag);
+
+            let threshold_vec = cgra_broadcast[DATA_TYPE](v_size, threshold);
+            let threshold_mask = cgra_gt[DATA_TYPE](val, threshold_vec);
+
+            // we can also use cgra_select(threshold_mask, 255, 0), then we don't need to use shift_round_saturate
+            // because data will stay in vector, not accumulate registers.
+            // it will make a new kernel (using new tile) for spliting,
+            // alternatively we can make a new iterator and put several res/write channel in the same kernel (tile)
+            let res = cgra_mul[DATA_TYPE](val, 255);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, res, ACC_SHIFT);
+
+            cgra_window_write_channel_v8(&mut ch_mag_to_out, res_vector);
+        }
+
+        // read from channel and write to fpga global memory
+        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch_mag_to_out));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga gmem to host
+        copy(out_fpga, out);
+
+    }
+
+    // Display the output
+    for i in range(0, img_dim.width * img_dim.height) {
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        print_i32(out_ptr(i) as i32);
+        print_string(" ");
+    }
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}

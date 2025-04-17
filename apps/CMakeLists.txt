@@ -5,6 +5,9 @@ set(APPS_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 if(BACKEND STREQUAL "opencl" AND PARALLEL STREQUAL "task" OR BACKEND STREQUAL "hls")
     set(DEVICE "fpga")
     set(DEVICE_SPECIFIC_FILES ${DSL_SOURCE_DIR}/mapping_fpga_img_${BACKEND}.impala ${DSL_SOURCE_DIR}/stencil_lib_img_fpga.impala)
+    if(IS_VERSAL)
+        list(APPEND DEVICE_SPECIFIC_FILES ${DSL_SOURCE_DIR}/mapping_versal.impala)
+    endif()
     set(CHANNEL_LIB_DIR ${DSL_SOURCE_DIR}/channel_lib CACHE INTERNAL "channel library directory")
     file(STRINGS ${DSL_SOURCE_DIR}/backend_${BACKEND}.impala VECTOR_LENGTH_FN REGEX "static vector_length")
     string(REGEX MATCHALL "[0-9]" VECTOR_LENGTH "${VECTOR_LENGTH_FN}")
@@ -37,29 +40,46 @@ set(COMMON_FILES_F32 ${DSL_FILES} ${DEVICE_SPECIFIC_FILES} ${BACKEND_FILE} ${PIX
 set(COMMON_FILES_U8  ${DSL_FILES} ${DEVICE_SPECIFIC_FILES} ${BACKEND_FILE} ${PIXEL_TYPE_UCHAR_FILE} ${CHANNEL_LIB} ${MAPPING_FILE})
 
 # application sources and benchmarks
-set (GAUSSIAN_DIR            ${APPS_DIR}/gaussian)
-set (GAUSSIAN_BURST_DIR      ${APPS_DIR}/gaussian_burst)
-set (SOBEL_LUMA_DIR          ${APPS_DIR}/sobel_luma)
-set (SOBEL_LUMA_BURST_DIR    ${APPS_DIR}/sobel_luma_burst)
-set (SOBEL_BURST_DIR         ${APPS_DIR}/sobel_burst)
-set (UNSHARP_DIR             ${APPS_DIR}/unsharp)
-set (OPTICAL_FLOW_HS_DIR     ${APPS_DIR}/optical_flow_hs)
-set (OPTICAL_FLOW_LK_DIR     ${APPS_DIR}/optical_flow_lk)
-set (JACOBI_DIR              ${APPS_DIR}/jacobi)
-set (JACOBI_BURST_DIR        ${APPS_DIR}/jacobi_burst)
-set (BILATERAL_DIR           ${APPS_DIR}/bilateral)
-set (BILATERAL_BURST_DIR     ${APPS_DIR}/bilateral_burst)
-set (SQUARE_DIR              ${APPS_DIR}/square)
-set (SQUARE_BURST_DIR        ${APPS_DIR}/square_burst)
-set (BOX_FILTER_DIR          ${APPS_DIR}/box_filter)
-set (BOX_FILTER_BURST_DIR    ${APPS_DIR}/box_filter_burst)
-set (LAPLACE_DIR             ${APPS_DIR}/laplace)
-set (LAPLACE_BURST_DIR       ${APPS_DIR}/laplace_burst)
-set (FILTER_CHAIN_DIR        ${APPS_DIR}/filter_chain)
-set (FILTER_CHAIN_BURST_DIR  ${APPS_DIR}/filter_chain_burst)
-set (HARRIS_CORNER_DIR       ${APPS_DIR}/harris_corner)
-set (HARRIS_CORNER_BURST_DIR ${APPS_DIR}/harris_corner_burst)
-set (SHI_THOMASI_DIR         ${APPS_DIR}/shi_thomasi)
+set (GAUSSIAN_DIR                 ${APPS_DIR}/gaussian)
+set (GAUSSIAN_BURST_DIR           ${APPS_DIR}/gaussian_burst)
+set (SOBEL_LUMA_DIR               ${APPS_DIR}/sobel_luma)
+set (SOBEL_LUMA_BURST_DIR         ${APPS_DIR}/sobel_luma_burst)
+set (SOBEL_BURST_DIR              ${APPS_DIR}/sobel_burst)
+set (UNSHARP_DIR                  ${APPS_DIR}/unsharp)
+set (OPTICAL_FLOW_HS_DIR          ${APPS_DIR}/optical_flow_hs)
+set (OPTICAL_FLOW_LK_DIR          ${APPS_DIR}/optical_flow_lk)
+set (JACOBI_DIR                   ${APPS_DIR}/jacobi)
+set (JACOBI_BURST_DIR             ${APPS_DIR}/jacobi_burst)
+set (BILATERAL_DIR                ${APPS_DIR}/bilateral)
+set (BILATERAL_BURST_DIR          ${APPS_DIR}/bilateral_burst)
+set (SQUARE_DIR                   ${APPS_DIR}/square)
+set (SQUARE_BURST_DIR             ${APPS_DIR}/square_burst)
+set (BOX_FILTER_DIR               ${APPS_DIR}/box_filter)
+set (BOX_FILTER_BURST_DIR         ${APPS_DIR}/box_filter_burst)
+set (LAPLACE_DIR                  ${APPS_DIR}/laplace)
+set (LAPLACE_BURST_DIR            ${APPS_DIR}/laplace_burst)
+set (FILTER_CHAIN_DIR             ${APPS_DIR}/filter_chain)
+set (FILTER_CHAIN_BURST_DIR       ${APPS_DIR}/filter_chain_burst)
+set (HARRIS_CORNER_DIR            ${APPS_DIR}/harris_corner)
+set (HARRIS_CORNER_BURST_DIR      ${APPS_DIR}/harris_corner_burst)
+set (SHI_THOMASI_DIR              ${APPS_DIR}/shi_thomasi)
+set (FIR_VECTORIZED_AIE_DIR       ${APPS_DIR}/fir_vectorized_aie)
+set (GAUSSIAN_AIE_DIR             ${APPS_DIR}/gaussian_aie)
+set (LAPLACE_AIE_DIR              ${APPS_DIR}/laplace_aie)
+set (FILTER_CHAIN_AIE_DIR         ${APPS_DIR}/filter_chain_aie)
+set (BOX_FILTER_AIE_DIR           ${APPS_DIR}/box_filter_aie)
+set (JACOBI_AIE_DIR               ${APPS_DIR}/jacobi_aie)
+set (SQUARE_AIE_DIR               ${APPS_DIR}/square_aie)
+set (SOBEL_AIE_DIR                ${APPS_DIR}/sobel_aie)
+set (SOBEL_LUMA_AIE_DIR           ${APPS_DIR}/sobel_luma_aie)
+set (HARRIS_CORNER_AIE_DIR        ${APPS_DIR}/harris_corner_aie)
+set (SHI_THOMASI_AIE_DIR          ${APPS_DIR}/shi_thomasi_aie)
+set (UNSHARP_AIE_DIR              ${APPS_DIR}/unsharp_aie)
+set (POSTERIZATION_HETERO_DIR     ${APPS_DIR}/posterization_hetero)
+set (POSTERIZATION_AIE_DIR        ${APPS_DIR}/posterization_aie)
+set (POSTERIZATION_AIE_SINGLE_DIR ${APPS_DIR}/posterization_aie_single)
+set (POSTERIZATION_BURST_DIR      ${APPS_DIR}/posterization_burst)
+
 
 set(BILATERAL_FILES           ${BILATERAL_DIR}/mask_f32.impala ${BILATERAL_DIR}/bilateral.impala)
 set(BILATERAL_BURST_FILES     ${BILATERAL_BURST_DIR}/mask_f32.impala ${BILATERAL_BURST_DIR}/bilateral_burst.impala)
@@ -74,6 +94,7 @@ set(GAUSSIAN_FILES            ${GAUSSIAN_DIR}/mask_${PIXEL_TYPE}.impala ${GAUSSI
 set(GAUSSIAN_BURST_FILES      ${GAUSSIAN_BURST_DIR}/mask_${PIXEL_TYPE}.impala ${GAUSSIAN_BURST_DIR}/gaussian_burst.impala)
 set(SOBEL_LUMA_FILES          ${SOBEL_LUMA_DIR}/mask_i32.impala ${SOBEL_LUMA_DIR}/sobel_luma.impala)
 set(SOBEL_LUMA_BURST_FILES    ${SOBEL_LUMA_BURST_DIR}/mask_i32.impala ${SOBEL_LUMA_BURST_DIR}/sobel_luma_burst.impala)
+set(SOBEL_LUMA_AIE_FILES      ${SOBEL_LUMA_AIE_DIR}/mask_i32.impala ${SOBEL_LUMA_AIE_DIR}/sobel_luma_aie.impala)
 set(SOBEL_BURST_FILES         ${SOBEL_BURST_DIR}/mask_i32.impala ${SOBEL_BURST_DIR}/sobel_burst.impala)
 set(UNSHARP_FILES             ${UNSHARP_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_DIR}/unsharp.impala)
 set(OPTICAL_FLOW_HS_FILES     ${OPTICAL_FLOW_HS_DIR}/mask_${PIXEL_TYPE}.impala ${OPTICAL_FLOW_HS_DIR}/optical_flow_hs.impala)
@@ -85,6 +106,21 @@ set(FILTER_CHAIN_BURST_FILES  ${FILTER_CHAIN_BURST_DIR}/mask_${PIXEL_TYPE}.impal
 set(HARRIS_CORNER_FILES       ${HARRIS_CORNER_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_DIR}/harris_corner.impala)
 set(HARRIS_CORNER_BURST_FILES ${HARRIS_CORNER_BURST_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_BURST_DIR}/harris_corner_burst.impala)
 set(SHI_THOMASI_FILES         ${SHI_THOMASI_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_DIR}/shi_thomasi.impala)
+set(FIR_VECTORIZED_AIE_FILES  ${FIR_VECTORIZED_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${FIR_VECTORIZED_AIE_DIR}/fir_vectorized_aie.impala)
+set(GAUSSIAN_AIE_FILES        ${GAUSSIAN_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${GAUSSIAN_AIE_DIR}/gaussian_aie.impala)
+set(LAPLACE_AIE_FILES         ${LAPLACE_AIE_DIR}/mask.impala ${LAPLACE_AIE_DIR}/laplace_aie.impala)
+set(FILTER_CHAIN_AIE_FILES    ${FILTER_CHAIN_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${FILTER_CHAIN_AIE_DIR}/filter_chain_aie.impala)
+set(BOX_FILTER_AIE_FILES      ${BOX_FILTER_BURST_DIR}/mask.impala ${BOX_FILTER_AIE_DIR}/box_filter_aie.impala)
+set(JACOBI_AIE_FILES          ${JACOBI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${JACOBI_AIE_DIR}/jacobi_aie.impala)
+set(SQUARE_AIE_FILES          ${SQUARE_AIE_DIR}/square_aie.impala)
+set(SOBEL_AIE_FILES           ${SOBEL_AIE_DIR}/mask_i32.impala ${SOBEL_AIE_DIR}/sobel_aie.impala)
+set(HARRIS_CORNER_AIE_FILES   ${HARRIS_CORNER_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_AIE_DIR}/harris_corner_aie.impala)
+set(SHI_THOMASI_AIE_FILES     ${SHI_THOMASI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_AIE_DIR}/shi_thomasi_aie.impala)
+set(UNSHARP_AIE_FILES         ${UNSHARP_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_DIR}/unsharp_aie.impala)
+set(POSTERIZATION_HETERO_FILES     ${POSTERIZATION_HETERO_DIR}/posterization_hetero.impala)
+set(POSTERIZATION_AIE_FILES        ${POSTERIZATION_AIE_DIR}/posterization_aie.impala)
+set(POSTERIZATION_AIE_SINGLE_FILES ${POSTERIZATION_AIE_SINGLE_DIR}/posterization_aie_single.impala)
+set(POSTERIZATION_BURST_FILES      ${POSTERIZATION_BURST_DIR}/posterization_burst.impala)
 
 # for optional config files
 set(APPS_CONFIG_FILES "")
@@ -273,17 +309,6 @@ add_executable(square_burst ${SQUARE_BURST_PROGRAM})
 target_link_libraries(square_burst ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_burst" square_burst)
 
-anydsl_runtime_wrap(FIR_VECTORIZED_PROGRAM
-    FRONTEND "artic"
-    CLANG_FLAGS ${CLANG_FLAGS}
-    ARTIC_FLAGS ${ARTIC_FLAGS}
-    HLS_FLAGS ${HLS_FLAGS}
-    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FIR_VECTORIZED_FILES})
-add_executable(fir_vectorized ${FIR_VECTORIZED_PROGRAM})
-target_link_libraries(fir_vectorized ${ANYDSL_RUNTIME_LIBRARIES})
-set_target_properties(fir_vectorized PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
-
-
 anydsl_runtime_wrap(FILTER_CHAIN_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
@@ -338,3 +363,171 @@ add_executable(harris_corner_burst "${HARRIS_CORNER_BURST_DIR}/main.cpp" ${HARRI
 target_link_libraries(harris_corner_burst ${ANYDSL_RUNTIME_LIBRARIES})
 set_target_properties(harris_corner_burst PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
 set_target_properties(harris_corner_burst PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+anydsl_runtime_wrap(POSTERIZATION_BURST_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_BURST_FILES})
+add_executable(posterization_burst ${POSTERIZATION_BURST_PROGRAM})
+target_link_libraries(posterization_burst ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_burst" posterization_burst)
+
+
+if(IS_VERSAL)
+    anydsl_runtime_wrap(FIR_VECTORIZED_AIE_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${ARTIC_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FIR_VECTORIZED_AIE_FILES})
+    add_executable(fir_vectorized_aie ${FIR_VECTORIZED_AIE_PROGRAM})
+    target_link_libraries(fir_vectorized_aie ${ANYDSL_RUNTIME_LIBRARIES})
+    set_target_properties(fir_vectorized_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+
+    anydsl_runtime_wrap(GAUSSIAN_AIE_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${ARTIC_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${GAUSSIAN_AIE_FILES})
+    add_executable(gaussian_aie ${GAUSSIAN_AIE_PROGRAM})
+    target_link_libraries(gaussian_aie ${ANYDSL_RUNTIME_LIBRARIES})
+    set_target_properties(gaussian_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+
+    anydsl_runtime_wrap(LAPLACE_AIE_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${ARTIC_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${LAPLACE_AIE_FILES})
+    add_executable(laplace_aie ${LAPLACE_AIE_PROGRAM})
+    target_link_libraries(laplace_aie ${ANYDSL_RUNTIME_LIBRARIES})
+    set_target_properties(laplace_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+
+    anydsl_runtime_wrap(FILTER_CHAIN_AIE_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${ARTIC_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${FILTER_CHAIN_AIE_FILES})
+    add_executable(filter_chain_aie ${FILTER_CHAIN_AIE_PROGRAM})
+    target_link_libraries(filter_chain_aie ${ANYDSL_RUNTIME_LIBRARIES})
+    set_target_properties(filter_chain_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+    set_target_properties(filter_chain_aie PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+    anydsl_runtime_wrap(BOX_FILTER_AIE_PROGRAM
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${ARTIC_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${BOX_FILTER_AIE_FILES})
+    add_executable(box_filter_aie ${BOX_FILTER_AIE_PROGRAM})
+    target_link_libraries(box_filter_aie ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("box_filter_aie" box_filter_aie)
+
+    anydsl_runtime_wrap(JACOBI_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${JACOBI_AIE_FILES})
+add_executable(jacobi_aie ${JACOBI_AIE_PROGRAM})
+target_link_libraries(jacobi_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("jacobi_burst" jacobi_aie)
+
+anydsl_runtime_wrap(SQUARE_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_AIE_FILES})
+add_executable(square_aie ${SQUARE_AIE_PROGRAM})
+target_link_libraries(square_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("square_aie" square_aie)
+
+anydsl_runtime_wrap(SOBEL_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SOBEL_AIE_FILES})
+add_executable(sobel_aie ${SOBEL_AIE_PROGRAM})
+target_link_libraries(sobel_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("sobel_aie" sobel_aie)
+
+anydsl_runtime_wrap(SOBEL_LUMA_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SOBEL_LUMA_AIE_FILES})
+add_executable(sobel_luma_aie ${SOBEL_LUMA_AIE_PROGRAM})
+target_link_libraries(sobel_luma_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("sobel_luma_aie" sobel_luma_aie)
+
+anydsl_runtime_wrap(HARRIS_CORNER_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_AIE_FILES})
+add_executable(harris_corner_aie "${HARRIS_CORNER_AIE_DIR}/main.cpp" ${HARRIS_CORNER_AIE_PROGRAM})
+target_link_libraries(harris_corner_aie ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(harris_corner_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+set_target_properties(harris_corner_aie PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+anydsl_runtime_wrap(SHI_THOMASI_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SHI_THOMASI_AIE_FILES})
+add_executable(shi_thomasi_aie "${SHI_THOMASI_AIE_DIR}/main.cpp" ${SHI_THOMASI_AIE_PROGRAM})
+target_link_libraries(shi_thomasi_aie ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(shi_thomasi_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+set_target_properties(shi_thomasi_aie PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+anydsl_runtime_wrap(UNSHARP_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${UNSHARP_AIE_FILES})
+add_executable(unsharp_aie ${UNSHARP_AIE_PROGRAM})
+target_link_libraries(unsharp_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("unsharp_aie" unsharp_aie)
+
+anydsl_runtime_wrap(POSTERIZATION_HETERO_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_HETERO_FILES})
+add_executable(posterization_hetero ${POSTERIZATION_HETERO_PROGRAM})
+target_link_libraries(posterization_hetero ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_hetero" posterization_hetero)
+
+anydsl_runtime_wrap(POSTERIZATION_AIE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_AIE_FILES})
+add_executable(posterization_aie ${POSTERIZATION_AIE_PROGRAM})
+target_link_libraries(posterization_aie ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_aie" posterization_aie)
+
+anydsl_runtime_wrap(POSTERIZATION_AIE_SINGLE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_AIE_SINGLE_FILES})
+add_executable(posterization_aie_single ${POSTERIZATION_AIE_SINGLE_PROGRAM})
+target_link_libraries(posterization_aie_single ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_aie_single" posterization_aie_single)
+
+endif()
+

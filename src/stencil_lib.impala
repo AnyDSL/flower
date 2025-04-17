@@ -211,6 +211,15 @@ fn @get_mask3[T](data: [[T * 3] * 3]) -> Mask[T] {
         size_x = 3, size_y = 3
     }
 }
+
+fn @null_mask() -> Mask[pixel_t] {
+    Mask[pixel_t] {
+        data = @|_, _| 0 as pixel_t,
+        sum  = 0 as pixel_t,
+        size_x = 0, size_y = 0
+    }
+}
+
 fn @get_mask5[T](data: [[T * 5] * 5]) -> Mask[T] {
     let data_sum = @|x:i32| -> T { data(x % 5)(x / 5) };
     Mask[T] {

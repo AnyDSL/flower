@@ -1,0 +1,134 @@
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+
+static mut ch_in_to_blur               : channel8[pixel_t];
+static mut ch_in_to_sharpen            : channel8[pixel_t];
+static mut ch_in_to_mask            : channel8[pixel_t];
+static mut ch_blur_to_sharpen_and_mask : channel8[pixel_t];
+static mut ch_sharpen_to_mask          : channel8[pixel_t];
+static mut ch_mask_to_out              : channel8[pixel_t];
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+
+    let mask    = get_mask5(blur_mask5);
+    let null_mask = null_mask();
+
+    let kernel_width  = mask.size_x;
+    let kernel_height = mask.size_y;
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    let arr      = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out      = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+
+        // simulating a 2D traversal in a linear fashion.
+        let x = i % img_dim.width;
+        let y = i / img_dim.width;
+
+        let val = if ((((x % 16) >= 8) & (( y % 16) < 8)) | (((x % 16) < 8) & ((y % 16) >= 8))) == false { 255 as pixel_t }
+                  else { 0 as pixel_t }; // a checkerboard pattern
+
+        arr_ptr(i) = val as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga global memory and write to a channels
+        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            let data = read(arr_fpga, idx);
+            write_channel8[DATA_TYPE](&mut ch_in_to_blur, data);
+            write_channel8[DATA_TYPE](&mut ch_in_to_sharpen, data);
+            write_channel8[DATA_TYPE](&mut ch_in_to_mask, data);
+        }
+
+        // blur
+        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+
+            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_blur, lbuff, kernel_width, img_dim);
+            process3[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch_blur_to_sharpen_and_mask);
+        }
+
+        // sharpen
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let in_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_sharpen);
+            let blur_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
+
+            //let pix_sharpen = in_to_sharpen * (one + weight) + blur_to_sharpen * (-weight);
+            //out.write(x, y, pix_sharpen);
+
+            let weight = cgra_broadcast[DATA_TYPE](v_size, weight);
+            let one = cgra_broadcast[DATA_TYPE](v_size, one);
+            let one_plus_weight = cgra_add[DATA_TYPE](one, weight);
+            let mut acc = cgra_mul[DATA_TYPE](in_to_sharpen, one_plus_weight);
+            let neg_weight = cgra_neg[DATA_TYPE](weight);
+            acc = cgra_mac[DATA_TYPE](acc, blur_to_sharpen, neg_weight);
+
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, acc, ACC_SHIFT);
+
+            cgra_window_write_channel_v8(&mut ch_sharpen_to_mask, res_vector);
+        }
+
+        // Mask (Ratio)
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+
+            let in_to_mask      = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_mask);
+            let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
+            let sharpen_to_mask = cgra_window_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask);
+
+            let diff = cgra_sub[DATA_TYPE](in_to_mask, blur_to_mask);
+            let absolute_value = cgra_abs(diff);
+            let threshold = cgra_broadcast[DATA_TYPE](v_size, threshold);
+
+            //let pix_mask_out = if (absolute_value < threshold) {in_to_mask} else {sharpen_to_mask};
+            let mask = cgra_lt[DATA_TYPE](absolute_value, threshold);
+            let pix_mask_out = cgra_select[DATA_TYPE](sharpen_to_mask, in_to_mask, mask);
+
+            cgra_window_write_channel_v8(&mut ch_mask_to_out, pix_mask_out);
+        }
+
+        // read from channel and write to fpga global memory
+        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * img_dim.width + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch_mask_to_out));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga gmem to host
+        copy(out_fpga, out);
+
+    }
+
+    // Display the output
+    for i in range(0, img_dim.width * img_dim.height) {
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        print_i32(out_ptr(i) as i32);
+        print_string(" ");
+    }
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}

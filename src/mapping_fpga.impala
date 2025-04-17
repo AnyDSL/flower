@@ -928,6 +928,7 @@ fn @iteration[T](body: StencilFn[T]) = @|math: Intrinsics, out: Img[T], arr: Img
             pipeline2d(my_hardware);
         }
     }
+    // gets the host copy only if the image is not virtual
     get_host_copy(out_dev, out);
 };
 

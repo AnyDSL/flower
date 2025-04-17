@@ -7,7 +7,6 @@ static gaussian_mask5 = [[ 1,  4,  6,  4, 1 ],
 
 
 
-
 static guassian_coeffs_row0 = [ 1 as pixel_t,  4 as pixel_t, 6 as pixel_t, 4 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
 static guassian_coeffs_row1 = [ 4 as pixel_t, 16 as pixel_t, 24 as pixel_t, 16 as pixel_t, 4 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
 static guassian_coeffs_row2 = [ 6 as pixel_t,  24 as pixel_t, 36 as pixel_t, 24 as pixel_t, 6 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
