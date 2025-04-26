@@ -110,7 +110,7 @@ set(FIR_VECTORIZED_AIE_FILES  ${FIR_VECTORIZED_AIE_DIR}/mask_${PIXEL_TYPE}.impal
 set(GAUSSIAN_AIE_FILES        ${GAUSSIAN_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${GAUSSIAN_AIE_DIR}/gaussian_aie.impala)
 set(LAPLACE_AIE_FILES         ${LAPLACE_AIE_DIR}/mask.impala ${LAPLACE_AIE_DIR}/laplace_aie.impala)
 set(FILTER_CHAIN_AIE_FILES    ${FILTER_CHAIN_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${FILTER_CHAIN_AIE_DIR}/filter_chain_aie.impala)
-set(BOX_FILTER_AIE_FILES      ${BOX_FILTER_BURST_DIR}/mask.impala ${BOX_FILTER_AIE_DIR}/box_filter_aie.impala)
+set(BOX_FILTER_AIE_FILES      ${BOX_FILTER_AIE_DIR}/mask.impala ${BOX_FILTER_AIE_DIR}/box_filter_aie.impala)
 set(JACOBI_AIE_FILES          ${JACOBI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${JACOBI_AIE_DIR}/jacobi_aie.impala)
 set(SQUARE_AIE_FILES          ${SQUARE_AIE_DIR}/square_aie.impala)
 set(SOBEL_AIE_FILES           ${SOBEL_AIE_DIR}/mask_i32.impala ${SOBEL_AIE_DIR}/sobel_aie.impala)

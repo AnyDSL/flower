@@ -2,11 +2,15 @@
 // AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
 static v_size = 8;
 
-//type DATA_TYPE = pixel_t;
 type DATA_TYPE = i32;
+//type DATA_TYPE = pixel_t;
 static ACC_SHIFT = 1:u32;
 
 fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
+
+fn @alloc_device(core: Core, size: i64) -> Buffer {
+    get_core_backend(core).alloc(size)
+}
 
 fn @sync_device(core: Core) -> () {
     let device = get_core_backend(core);
@@ -135,8 +139,8 @@ fn @get_mask3[T](data: [[T * 3] * 3]) -> Mask[T] {
     let data_sum = @|x:i32| -> T { data(x % 3)(x / 3) };
     Mask[T] {
         data = @|x, y| -> T { data(y)(x) },
-             sum  = sum_mask(9, data_sum),
-             size_x = 3, size_y = 3
+        sum  = sum_mask(9, data_sum),
+        size_x = 3, size_y = 3
     }
 }
 
@@ -150,10 +154,6 @@ struct Linebuffer_t[T] {
     line0: T,
     line1: T,
     line2: T
-}
-
-fn @alloc_device(core: Core, size: i64) -> Buffer {
-    get_core_backend(core).alloc(size)
 }
 
 static mut lbuf_cnt = 0;
@@ -184,30 +184,29 @@ fn main() -> () {
 
             Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
                 line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
-                      line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
-                      line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
             }
 
         } else if cur_lbuf_cnt == 1 {
 
             Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
                 line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(img_dim.width + i) },
-                      line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
-                      line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(img_dim.width + i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(img_dim.width + i) },
             }
 
         } else {
 
             Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
                 line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 1) % 3) * img_dim.width + i) },
-                      line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 2) % 3) * img_dim.width + i) },
-                      line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 0) % 3) * img_dim.width + i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 2) % 3) * img_dim.width + i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 0) % 3) * img_dim.width + i) },
             }
         }
     }
 
-    fn process[T](
-        img_dim: Img_dim, linebuffer: Linebuffer_t[fn(i32) -> &mut addrspace(3) T], mask: Mask[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
+    fn process[T](img_dim: Img_dim, linebuffer: Linebuffer_t[fn(i32) -> &mut addrspace(3) T], mask: Mask[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
 
         let kernel_width = mask.size_x;
         let kernel_side = (kernel_width / 2) as u32;

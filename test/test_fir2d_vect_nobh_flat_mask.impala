@@ -1,15 +1,12 @@
 // Naive version: no mem access optimization, no border handling
 // AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
 static v_size = 8;
+
 type DATA_TYPE = i32;
 //type DATA_TYPE = pixel_t;
 static ACC_SHIFT = 0:u32;
 
 fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
-
-fn read_channel_v8[T](ch: &mut channel[T]) -> T {
-    cgra_window_readincr_v[T](8, ch)
-}
 
 fn @alloc_device(core: Core, size: i64) -> Buffer {
     get_core_backend(core).alloc(size)
@@ -87,7 +84,6 @@ fn sliding_mac_i32(lane_size: u32, fir_taps: u32, acc: u64, coeff:i32, coeff_sta
 }
 
 fn sliding_mac_8x8_i32(acc:u64, coeff:i32, data:i32) = sliding_mac_i32(8, 8, acc:u64, coeff:i32, 0, data:i32);
-
 
 
 fn @range_(body: fn(i32) -> ()) = @|lower: i32, upper: i32| unroll_step(body)($lower, $upper, 1);
@@ -184,8 +180,6 @@ fn main() -> () {
     let kernel_width = mask.size_x;
     let kernel_height = mask.size_y;
 
-
-
     fn @prepare_lbuff[T](input: &mut channel8[T], lbuff: &mut addrspace(3)[T], kernel_width: i32, image_width: i32) -> Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
         let lbuf_seg = lbuf_cnt % kernel_width;
 
@@ -246,16 +240,15 @@ fn main() -> () {
         let  prev_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
 
 
-
         let points = next_8multiple(kernel_width as u32);
 
-        // we need to make the points to be always zero
-        // we need to have 3 static arrays each with 8 elements and already padded with zeros
-        let coeff_padded_size = next_8multiple(points * (kernel_width as u32));
-        let mut coeffs_padded = cgra_zeros[DATA_TYPE](coeff_padded_size);
+     // instead of 3 vars we can use 1 var and extract the coeffs from it
+     // let coeff_padded_size = next_8multiple(points * (kernel_width as u32));
+     // let mut coeffs_padded = cgra_zeros[DATA_TYPE](coeff_padded_size);
 
         for _x in aie_pipeline(0, (img_dim.width - (kernel_width - 1) + v_size - 1) / v_size) {
 
+            // loading 3 static arrays each with points=8 elements and already padded with zeros
             let coeffs_row0 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row0(0));
             let coeffs_row1 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row1(0));
             let coeffs_row2 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row2(0));
@@ -283,7 +276,6 @@ fn main() -> () {
         }
     }
 
-
     let auto_locate = (-1, -1);
     let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
 
@@ -307,7 +299,6 @@ fn main() -> () {
 
     }
 
-
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
         copy(arr, arr_fpga);
@@ -318,7 +309,7 @@ fn main() -> () {
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
-        for _x, _y in iteration(cgra, img_dim){
+        for _x, _y in iteration(cgra, img_dim) {
 
             let lbuff = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
 
@@ -326,7 +317,6 @@ fn main() -> () {
 
                 let lbuff_addrs = @prepare_lbuff[DATA_TYPE](ch1, lbuff, kernel_width, img_dim.width);
                 @process[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2);
-
             }
         }
 
@@ -340,11 +330,7 @@ fn main() -> () {
         // copy back from fpga to host
         copy(out_fpga, out);
 
-//    hls(device, || {
-//        write(ptr_out, 0, read_channel(&mut ch2));
-//    });
     }
-
 
     release(out_fpga);
     release(arr_fpga);

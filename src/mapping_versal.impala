@@ -1,9 +1,27 @@
 
 type DATA_TYPE = i32;
+
+// custom types for flat masks
+struct FlatMask3[T] {
+    row0: [T * 8],
+    row1: [T * 8],
+    row2: [T * 8],
+    size: i32,
+}
+
+struct FlatMask5[T] {
+    row0: [T * 8],
+    row1: [T * 8],
+    row2: [T * 8],
+    row3: [T * 8],
+    row4: [T * 8],
+    size: i32,
+}
+
 static v_size = 8;
 static mut lbuf_cnt = 0;
 
-static ACC_SHIFT = 1:u32; // set for i32 8x8 sliding window 
+static ACC_SHIFT = 1:u32; // set for i32 8x8 sliding window
 
 fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
 
@@ -222,10 +240,11 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
 
 
     fn process3_flat[T](
-        img_dim: Img_dim, linebuffer: Linebuffer_t[fn(i32) -> &mut addrspace(3) T], mask: Mask[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
+        img_dim: Img_dim, linebuffer: Linebuffer_t[fn(i32) -> &mut addrspace(3) T], mask: FlatMask3[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
 
+        // maybe still need to use copy()
         //let ACC_SHIFT = 1:u32;
-        let kernel_width = mask.size_x;
+        let kernel_width = mask.size;
         let kernel_side = (kernel_width / 2) as u32;
 
         let mut line0_idx = 0;
@@ -243,24 +262,39 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
         let mut prev_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
 
         let points = next_8multiple(kernel_width as u32);
-        let mut value = bitcast[[DATA_TYPE * 32]]([0; 32]);
+       // let mut value = bitcast[[DATA_TYPE * 32]]([0; 32]);
 
-        for j in range(0, mask.size_y) {
-            for i in range(0, mask.size_x) {
-                let idx = j * (points as i32) + i;
-                value(idx) = mask.data(j, i);
-            }
-        }
+       // for j in range(0, mask.size_y) {
+       //     for i in range(0, mask.size_x) {
+       //         let idx = j * (points as i32) + i;
+       //         value(idx) = mask.data(j, i);
+       //     }
+       // }
 
-        let mut coeffs_padded_row0 = cgra_zeros[DATA_TYPE](points);
-        let mut coeffs_padded_row1 = cgra_zeros[DATA_TYPE](points);
-        let mut coeffs_padded_row2 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row0 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row1 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row2 = cgra_zeros[DATA_TYPE](points);
 
         for x in aie_pipeline(0, (img_dim.width - (kernel_width - 1) + v_size - 1) / v_size) {
 
-            coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &value(0));
-            coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + points));
-            coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (2 * points)));
+
+            // loading 3 static arrays each with points=8 elements and already padded with zeros
+            //let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &coeffs_row0(0));
+            //let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &coeffs_row1(0));
+            //let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &coeffs_row2(0));
+
+           // let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &mask.row0(0));
+           // let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &mask.row1(0));
+           // let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &mask.row2(0));
+
+            let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row0)(0));
+            let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row1)(0));
+            let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row2)(0));
+
+
+            //coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &value(0));
+            //coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + points));
+            //coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (2 * points)));
 
             data_slice0 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line0(line0_idx)));
             line0_idx += v_size;
@@ -286,11 +320,6 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
             //write_channel8[i32](out, res_vector);
         }
     }
-
-
-
-
-
 
 
     fn process5[T](
@@ -342,14 +371,14 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
             coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &value(0 + (0 * points)));
             coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + (1 * points)));
             coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (2 * points)));
-            coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + (3 * points)));
-            coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (4 * points)));
+            coeffs_padded_row3 = cgra_load_v[DATA_TYPE](points, &value(0 + (3 * points)));
+            coeffs_padded_row4 = cgra_load_v[DATA_TYPE](points, &value(0 + (4 * points)));
 
-            coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &value(0 + (0 * points)));
-            coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + (1 * points)));
-            coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (2 * points)));
-            coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (3 * points)));
-            coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (4 * points)));
+            // coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &value(0 + (0 * points)));
+            // coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &value(0 + (1 * points)));
+            // coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (2 * points)));
+            // coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (3 * points)));
+            // coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &value(0 + (4 * points)));
 
             data_slice0 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line0(line0_idx)));
             line0_idx += v_size;
@@ -387,6 +416,115 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
             //write_channel8[i32](out, res_vector);
         }
     }
+
+
+    fn process5_flat[T](
+        img_dim: Img_dim, linebuffer: Linebuffer5_t[fn(i32) -> &mut addrspace(3) T], mask: FlatMask5[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
+
+        //let ACC_SHIFT = 1:u32;
+        let kernel_width = mask.size;
+        let kernel_side = (kernel_width / 2) as u32;
+
+        let mut line0_idx = 0;
+        let mut line1_idx = 0;
+        let mut line2_idx = 0;
+        let mut line3_idx = 0;
+        let mut line4_idx = 0;
+
+        let mut acc: u64;
+
+        let mut data_slice0 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice1 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice3 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice4 = cgra_zeros[DATA_TYPE](v_size as u32);
+
+        let mut prev_slice0 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut prev_slice1 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut prev_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut prev_slice3 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut prev_slice4 = cgra_zeros[DATA_TYPE](v_size as u32);
+
+        let points = next_8multiple(kernel_width as u32);
+      //  let mut value = bitcast[[DATA_TYPE * 32]]([0; 32]);
+
+      //  for j in range(0, mask.size_y) {
+      //      for i in range(0, mask.size_x) {
+      //          let idx = j * (points as i32) + i;
+      //          value(idx) = mask.data(j, i);
+      //      }
+      //  }
+
+        //let coeff_padded_size = next_8multiple(points * (kernel_width as u32));
+       // let mut coeffs_padded_row0 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row1 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row2 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row3 = cgra_zeros[DATA_TYPE](points);
+       // let mut coeffs_padded_row4 = cgra_zeros[DATA_TYPE](points);
+
+        let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row0)(0));
+        let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row1)(0));
+        let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row2)(0));
+        let coeffs_padded_row3 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row3)(0));
+        let coeffs_padded_row4 = cgra_load_v[DATA_TYPE](points, &promote_static(mask.row4)(0));
+
+        for x in aie_pipeline(0, (img_dim.width - (kernel_width - 1) + v_size - 1) / v_size) {
+
+
+            //let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row3 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row4 = cgra_load_v[DATA_TYPE](points, &a(0));
+
+
+            //let coeffs_padded_row0 = cgra_load_v[DATA_TYPE](points, promote_static[DATA_TYPE](a(0)));
+            //let coeffs_padded_row1 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row2 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row3 = cgra_load_v[DATA_TYPE](points, &a(0));
+            //let coeffs_padded_row4 = cgra_load_v[DATA_TYPE](points, &a(0));
+
+
+
+            data_slice0 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line0(line0_idx)));
+            line0_idx += v_size;
+            data_slice0 = cgra_shuffle_up_fill(data_slice0, copy_v(prev_slice0) , kernel_side);
+            prev_slice0 = data_slice0;
+            //prev_slice0 = copy_v(data_slice0);
+            acc = sliding_mul_8x8_i32_fixed(coeffs_padded_row0, data_slice0);
+
+            data_slice1 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line1(line1_idx)));
+            line1_idx += v_size;
+            data_slice1 = cgra_shuffle_up_fill(data_slice1, prev_slice1, kernel_side);
+            prev_slice1 = data_slice1;
+            acc = sliding_mac_8x8_i32(acc, coeffs_padded_row1, data_slice1);
+
+            data_slice2 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line2(line2_idx)));
+            line2_idx += v_size;
+            data_slice2 = cgra_shuffle_up_fill(data_slice2, prev_slice2, kernel_side);
+            prev_slice2 = data_slice2;
+            acc = sliding_mac_8x8_i32(acc, coeffs_padded_row2, data_slice2);
+
+            data_slice3 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line3(line3_idx)));
+            line3_idx += v_size;
+            data_slice3 = cgra_shuffle_up_fill(data_slice3, prev_slice3, kernel_side);
+            prev_slice3 = data_slice3;
+            acc = sliding_mac_8x8_i32(acc, coeffs_padded_row3, data_slice3);
+
+            data_slice4 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line4(line4_idx)));
+            line4_idx += v_size;
+            data_slice4 = cgra_shuffle_up_fill(data_slice4, prev_slice4, kernel_side);
+            prev_slice4 = data_slice4;
+            acc = sliding_mac_8x8_i32(acc, coeffs_padded_row4, data_slice4);
+
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, u64](v_size as u32, acc, ACC_SHIFT);
+            cgra_window_write_channel_v8(out, res_vector);
+            //write_channel8[i32](out, res_vector);
+        }
+    }
+
+
+
 
 
 

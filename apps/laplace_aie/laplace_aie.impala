@@ -11,6 +11,13 @@ fn main() -> () {
     let kernel_width = mask.size_x;
     let kernel_height = mask.size_y;
 
+    let flat_mask = FlatMask3[DATA_TYPE] {
+                        row0 = laplace_coeffs_row0,
+                        row1 = laplace_coeffs_row1,
+                        row2 = laplace_coeffs_row2,
+                        size = kernel_width
+                    };
+
 
     let auto_locate = (-1, -1);
     let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
@@ -33,6 +40,9 @@ fn main() -> () {
         out_ptr(i) = 0:DATA_TYPE;
     }
 
+    //let process = process3[DATA_TYPE];
+    let process = process3_flat[DATA_TYPE];
+
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
         copy(arr, arr_fpga);
@@ -47,7 +57,8 @@ fn main() -> () {
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch1, lbuff, kernel_width, img_dim);
-            process3[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2);
+            //process(img_dim, lbuff_addrs, mask, &mut ch2);
+            process(img_dim, lbuff_addrs, flat_mask, &mut ch2);
         }
 
         // read from the channel and write to fpga global memory
