@@ -20,7 +20,7 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
 
             generate(core,||{
                 for y in range(0, height) {
-                    for x in pipeline(0, 0, width) {
+                    for x in pipeline(0, 0, width / v_size) {
                         @body(x, y);
                     }
                 }

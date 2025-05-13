@@ -538,7 +538,7 @@ fn @iteration_core[T](body: fn(i32, i32, &mut addrspace(3)[T]) -> ()) = @|core: 
 
             generate(core,||{
                 for y in range(0, height) {
-                    for x in pipeline(0, 0, width) {
+                    for x in pipeline(0, 0, width / v_size) {
                         @body(x, y, 0 as &mut addrspace(3)[T]);
                     }
                 }
