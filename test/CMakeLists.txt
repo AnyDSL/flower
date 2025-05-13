@@ -131,5 +131,14 @@ if(DEVICE STREQUAL "fpga")
     target_link_libraries(test_fir2d_vect_nobh_flat_mask ${ANYDSL_RUNTIME_LIBRARIES})
     add_test("test_fir2d_vect_nobh_flat_mask" test_fir2d_vect_nobh_flat_mask)
 
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_FLAT_MASK_PL_PINGPONG
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh_flat_mask_pl_pingpong.impala)
+    add_executable(test_fir2d_vect_nobh_flat_mask_pl_pingpong ${TEST_FIR2D_VECT_NOBH_FLAT_MASK_PL_PINGPONG})
+    target_link_libraries(test_fir2d_vect_nobh_flat_mask_pl_pingpong ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh_flat_mask_pl_pingpong" test_fir2d_vect_nobh_flat_mask_pl_pingpong)
 
 endif()

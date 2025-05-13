@@ -1,0 +1,346 @@
+// Naive version: no mem access optimization, no border handling
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+static v_size = 8;
+
+type DATA_TYPE = i32;
+//type DATA_TYPE = pixel_t;
+static ACC_SHIFT = 0:u32;
+
+fn @aie_pipeline(body: fn (i32) -> ()) = @|lower: i32, upper: i32| thorin_pipeline(0, lower, upper, body);
+
+fn @alloc_device(core: Core, size: i64) -> Buffer {
+    get_core_backend(core).alloc(size)
+}
+
+fn @sync_device(core: Core) -> () {
+    let device = get_core_backend(core);
+    device.sync()
+}
+
+fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, dim: Img_dim| {
+    let width = dim.width;
+    let height = dim.height;
+
+    match core {
+        Core::FPGA(_) => {
+
+            generate(core,||{
+
+                let ping = reserve_shared[[DATA_TYPE * v_size]](width);
+                let pong = reserve_shared[[DATA_TYPE * v_size]](width);
+
+                for y in range(0, height) {
+                    for x in pipeline(0, 0, width) {
+                        @body(x, y);
+                    }
+                }
+            });
+        },
+        Core::CGRA(config) => {
+            match config.interface {
+                Interface::stream => {
+                    generate(core,||{
+                        @body(1, 1);
+                    });
+                },
+                _ => {
+                    generate(core,||{
+                        cgra_set_sat();
+                        @body(0, 0);
+                    });
+                }
+            }
+        },
+        _ => ()
+    }
+};
+
+fn sliding_mul_i32(lane_size: u32, fir_taps: u32, coeff:i32, coeff_start:u32, data:i32) -> u64 {
+
+    // 32b x 32b
+    // max lanes: 8
+    // max points(taps): 8
+    // coeff start < 16
+    // ret acc80 (u64)
+
+    let coeff_step = 1;
+    let data_step_xy = 1;
+    let data_start = 0:u32;
+
+    cgra_sliding_mul_xy_ops_mul[i32, i32](lane_size, fir_taps, coeff_step, data_step_xy, coeff, coeff_start, data, data_start)
+}
+
+fn sliding_mul_8x8_i32(coeff:i32, data:i32) = sliding_mul_i32(8, 8, coeff:i32, 0, data:i32);
+
+fn sliding_mac_i32(lane_size: u32, fir_taps: u32, acc: u64, coeff:i32, coeff_start:u32, data:i32) -> u64 {
+
+    // 32b x 32b
+    // max lanes: 8
+    // max points(taps): 8
+    // coeff start < 16
+    // ret acc80 (u64)
+
+    let coeff_step = 1;
+    let data_step_xy = 1;
+    let data_start = 0:u32;
+
+    cgra_sliding_mul_xy_ops_mac[i32, i32](lane_size, fir_taps, coeff_step, data_step_xy, acc, coeff, coeff_start, data, data_start)
+}
+
+fn sliding_mac_8x8_i32(acc:u64, coeff:i32, data:i32) = sliding_mac_i32(8, 8, acc:u64, coeff:i32, 0, data:i32);
+
+
+fn @range_(body: fn(i32) -> ()) = @|lower: i32, upper: i32| unroll_step(body)($lower, $upper, 1);
+
+
+static laplace_mask3 = [[ 0 as pixel_t, 1 as pixel_t, 0 as pixel_t ],
+                       [  1 as pixel_t, -4 as pixel_t, 1 as pixel_t],
+                       [  0 as pixel_t, 1 as pixel_t, 0 as pixel_t]];
+
+// here we initialize and zero pad manually
+static laplace_coeffs_row0 = [ 0 as pixel_t,  1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static laplace_coeffs_row1 = [ 1 as pixel_t, -4 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static laplace_coeffs_row2 = [ 0 as pixel_t,  1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+
+
+struct Mask[T] {
+    data : fn(i32, i32) -> T,
+    sum  : T,
+    size_x : i32,
+    size_y : i32,
+}
+
+struct Img_dim {
+    width : i32,
+    height : i32
+}
+
+fn @make_8multiple(num: u32) -> u32 {
+    if num % 8 == 0 {
+        num
+    } else {
+        make_8multiple(num + 1)
+    }
+}
+
+fn @next_8multiple(num: u32) -> u32 {
+    if num <= 8 {
+        8
+    } else if (num & (num - 1)) == 0 && num % 8 == 0 {
+        num // If num is already a power of 2 and a multiple of 8, return it
+    } else {
+        next_8multiple(num + 1) // Recur with the next number
+    }
+}
+
+fn @sum_mask[T](size: i32, data: fn(i32) -> T) -> T {
+    fn @sum_helper(i: i32, s: pixel_t) -> pixel_t {
+        if i == size { s } else { sum_helper(i + 1, s + bitcast[pixel_t](data(i))) }
+    }
+    let sum = sum_helper(0, 0 as pixel_t);
+    if sum == 0 as pixel_t {
+        bitcast[T](1)
+    } else {
+        bitcast[T](sum)
+    }
+}
+
+fn @get_mask3[T](data: [[T * 3] * 3]) -> Mask[T] {
+    let data_sum = @|x:i32| -> T { data(x % 3)(x / 3) };
+    Mask[T] {
+        data = @|x, y| -> T { data(y)(x) },
+        sum  = sum_mask(9, data_sum),
+        size_x = 3, size_y = 3
+    }
+}
+
+fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 8] { bitcast[&addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) }
+fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) = v }
+
+static mut ch1 : channel8[i32];
+static mut ch2 : channel8[i32];
+
+struct CGRA_CONFIG {
+    device: i32 = 0,
+    runtime_ratio: f32 = 1,
+    location: (i32, i32) = (-10, -10),
+    vector_size: i32 = v_size
+}
+
+struct Linebuffer_t[T] {
+    line0: T,
+    line1: T,
+    line2: T
+}
+
+static mut lbuf_cnt = 0;
+
+#[export]
+fn main() -> () {
+    let device = 0;
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+    let mask = get_mask3(laplace_mask3);
+    let kernel_width = mask.size_x;
+    let kernel_height = mask.size_y;
+
+    fn @prepare_lbuff[T](input: &mut channel8[T], lbuff: &mut addrspace(3)[T], kernel_width: i32, image_width: i32) -> Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
+        let lbuf_seg = lbuf_cnt % kernel_width;
+
+        for x in aie_pipeline(0, img_dim.width / v_size) {
+            let data_slice = cgra_window_read_channel_v8[T](input);
+            let lbuff_idx = (lbuf_seg * img_dim.width) + (x * v_size);
+            //let lbuff_idx = (lbuf_seg * img_dim.width) + (x * 22); // 22?
+            cgra_store_v_local[T](lbuff(lbuff_idx), data_slice);
+        }
+
+        let cur_lbuf_cnt = lbuf_cnt;
+        lbuf_cnt++;
+
+        if cur_lbuf_cnt == 0 {
+
+            Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
+                line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+            }
+
+        } else if cur_lbuf_cnt == 1 {
+
+            Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
+                line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(img_dim.width + i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(img_dim.width + i) },
+            }
+
+        } else {
+
+            Linebuffer_t[fn(i32) -> &mut addrspace(3) T] {
+                line0 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 1) % 3) * img_dim.width + i) },
+                line1 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 2) % 3) * img_dim.width + i) },
+                line2 = @|i: i32| -> &mut addrspace(3) T { &mut lbuff(((cur_lbuf_cnt + 0) % 3) * img_dim.width + i) },
+            }
+        }
+    }
+
+    fn @process[T](img_dim: Img_dim, linebuffer: Linebuffer_t[fn(i32) -> &mut addrspace(3) T], mask: Mask[DATA_TYPE], out: &mut channel8[DATA_TYPE]) -> () {
+
+        let kernel_width = mask.size_x;
+        let kernel_side = (kernel_width / 2) as u32;
+
+        let mut line0_idx = 0;
+        let mut line1_idx = 0;
+        let mut line2_idx = 0;
+
+        let mut acc: u64;
+
+        let mut data_slice0 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice1 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let mut data_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
+
+        // they are not mutable but we update them via insert intrinsic
+        let  prev_slice0 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let  prev_slice1 = cgra_zeros[DATA_TYPE](v_size as u32);
+        let  prev_slice2 = cgra_zeros[DATA_TYPE](v_size as u32);
+
+
+        let points = next_8multiple(kernel_width as u32);
+
+     // instead of 3 vars we can use 1 var and extract the coeffs from it
+     // let coeff_padded_size = next_8multiple(points * (kernel_width as u32));
+     // let mut coeffs_padded = cgra_zeros[DATA_TYPE](coeff_padded_size);
+
+        for _x in aie_pipeline(0, (img_dim.width - (kernel_width - 1) + v_size - 1) / v_size) {
+
+            // loading 3 static arrays each with points=8 elements and already padded with zeros
+            let coeffs_row0 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row0(0));
+            let coeffs_row1 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row1(0));
+            let coeffs_row2 = cgra_load_v[DATA_TYPE](points, &laplace_coeffs_row2(0));
+
+            data_slice0 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line0(line0_idx)));
+            line0_idx += v_size;
+            let data_slice0_temp = cgra_shuffle_up_fill(copy_v(data_slice0), copy_v(prev_slice0), kernel_side);
+            cgra_insert(prev_slice0, 0, data_slice0_temp); //instead of prev_slice0 = data_slice0
+            acc = sliding_mul_8x8_i32(coeffs_row0, copy_v(data_slice0_temp));
+
+            data_slice1 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line1(line1_idx)));
+            line1_idx += v_size;
+            let data_slice1_temp = cgra_shuffle_up_fill(data_slice1, prev_slice1, kernel_side);
+            cgra_insert(prev_slice1, 0, data_slice1_temp); //instead of prev_slice1 = data_slice1;
+            acc = sliding_mac_8x8_i32(acc, coeffs_row1, data_slice1_temp);
+
+            data_slice2 = cgra_load_v[DATA_TYPE](v_size as u32, bitcast[&DATA_TYPE](linebuffer.line2(line2_idx)));
+            line2_idx += v_size;
+            let data_slice2_temp = cgra_shuffle_up_fill(data_slice2, prev_slice2, kernel_side);
+            cgra_insert(prev_slice2, 0, data_slice2_temp); // instead of prev_slice2 = data_slice2;
+            acc = sliding_mac_8x8_i32(acc, coeffs_row2, data_slice2);
+
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, u64](v_size as u32, acc, ACC_SHIFT);
+            cgra_window_write_channel_v8(out, res_vector);
+        }
+    }
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+
+    }
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga memory and write to channel
+        for x, y in iteration(fpga, img_dim) {
+            let idx = y * img_dim.width + x;
+            write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+        }
+
+        for _x, _y in iteration(cgra, img_dim) {
+
+            let lbuff = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
+
+            for _y in aie_pipeline(0, img_dim.height - (kernel_height - 1)) {
+
+                let lbuff_addrs = @prepare_lbuff[DATA_TYPE](ch1, lbuff, kernel_width, img_dim.width);
+                @process[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2);
+            }
+        }
+
+        // read from channel and write to fpga memory
+        for x, y in iteration(fpga, img_dim) {
+            let idx = y * img_dim.width + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga to host
+        copy(out_fpga, out);
+
+    }
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}
+
