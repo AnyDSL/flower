@@ -156,7 +156,7 @@ fn @get_global_stream_vec2[T](img: Img[T]) -> Mem2D[T] {
     let mut value = bitcast[[T * 2]]([0; 2]);
     let global_read_fn = get_global_read_vec2[T](img);
     fn @update(idx: i32) -> () { value = global_read_fn(idx); }
-    fn @read(idx: i32) -> T { value(idx) }
+    fn @read(idx: i32) -> T { value(idx) } // reads the value inside the packed vector
     fn @write(idx: i32, din: T) -> () { value(idx) = din; }
     create_Mem2D_from_img[T](img, 2, update, read, write)
 }

@@ -17,7 +17,34 @@ fn @sync_device(core: Core) -> () {
     device.sync()
 }
 
-fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, dim: Img_dim| {
+enum FlowType {
+    gmem,
+    channel
+}
+
+struct Flow[T] {
+    buffer: Buffer,
+    channel: &mut channel8[T],
+    flow_type: FlowType
+}
+
+fn @create_channel_flow[T](data: &mut channel8[T]) -> Flow[T] {
+    Flow[T] {
+        buffer = undef[Buffer](),
+        channel = data,
+        flow_type = FlowType::channel,
+    }
+}
+
+fn @create_gmem_flow[T](data: Buffer) -> Flow[T] {
+    Flow[T] {
+        buffer = data,
+        channel = undef[&mut channel8[T]](),
+        flow_type = FlowType::gmem,
+    }
+}
+
+fn @iteration(body: fn(i32, i32, [DATA_TYPE * 8]) -> ()) = @|core: Core, dim: Img_dim, input: Flow[DATA_TYPE]| {
     let width = dim.width;
     let height = dim.height;
 
@@ -26,27 +53,42 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, dim: Img_dim| {
 
             generate(core,||{
 
-                let ping = reserve_shared[[DATA_TYPE * v_size]](width);
-                let pong = reserve_shared[[DATA_TYPE * v_size]](width);
+                let ping = reserve_shared[[DATA_TYPE * 8]](width);
+                let pong = reserve_shared[[DATA_TYPE * 8]](width);
 
                 for y in range(0, height) {
-                    for x in pipeline(0, 0, width) {
-                        @body(x, y);
+                    for x in pipeline(0, 0, width / v_size) {
+                        let idx = y * width + x;
+                        let mut val = bitcast[[DATA_TYPE * 8]]([0; 8]);
+
+                        match input.flow_type {
+                            FlowType::gmem    => val = read(input.buffer, idx),
+                            FlowType::channel => val = read_channel8[DATA_TYPE](input.channel)
+                        }
+
+                        if y % 2 == 0 { ping(x) = val; } else { pong(x) = val; };
+                    }
+
+                    for x in pipeline(0, 0, width / v_size) {
+                        let local_buff = if (y % 2 == 0) { ping(x) } else { pong(x) };
+                        @body(x, y, local_buff);
                     }
                 }
             });
         },
         Core::CGRA(config) => {
+
+            let value = bitcast[[DATA_TYPE * 8]]([0; 8]);
             match config.interface {
                 Interface::stream => {
                     generate(core,||{
-                        @body(1, 1);
+                        @body(1, 1, value);
                     });
                 },
                 _ => {
                     generate(core,||{
                         cgra_set_sat();
-                        @body(0, 0);
+                        @body(0, 0, value);
                     });
                 }
             }
@@ -303,17 +345,21 @@ fn main() -> () {
 
     }
 
+    let arr_flow = create_gmem_flow[DATA_TYPE](arr_fpga);
+    let ch2_flow = create_channel_flow[DATA_TYPE](ch2);
+
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
         copy(arr, arr_fpga);
 
         // read from fpga memory and write to channel
-        for x, y in iteration(fpga, img_dim) {
-            let idx = y * img_dim.width + x;
-            write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+        for x, y, arr_flow in iteration(fpga, img_dim, arr_flow) {
+            //let idx = y * img_dim.width + x;
+            //write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+            write_channel8[DATA_TYPE](&mut ch1, arr_flow);
         }
 
-        for _x, _y in iteration(cgra, img_dim) {
+        for _x, _y, _arr_flow in iteration(cgra, img_dim, arr_flow) {
 
             let lbuff = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
 
@@ -325,9 +371,9 @@ fn main() -> () {
         }
 
         // read from channel and write to fpga memory
-        for x, y in iteration(fpga, img_dim) {
+        for x, y, ch2_flow in iteration(fpga, img_dim, ch2_flow) {
             let idx = y * img_dim.width + x;
-            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
+            write(out_fpga, idx, ch2_flow);
         }
 
         sync_device(fpga);
