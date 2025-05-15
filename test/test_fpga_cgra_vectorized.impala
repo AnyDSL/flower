@@ -4,7 +4,7 @@ static v_size = 8;
 fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
     generate(core,||{
         for y in range(0, height) {
-            for x in range(0, width) {
+            for x in range(0, width / v_size) {
                 @body(x, y);
             }
         }
@@ -36,7 +36,7 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
 
             generate(core,||{
                 for y in range(0, height) {
-                    for x in pipeline(0, 0, width) {
+                    for x in pipeline(0, 0, width / v_size) {
                         @body(x, y);
                     }
                 }
@@ -91,7 +91,7 @@ fn main() -> i32 {
     let out_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
 
     // initialize host buffers
-    for i in range(0, width*height) {
+    for i in range(0, width * height) {
         let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
         let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
         arr_ptr(i) = i as DATA_TYPE;
@@ -103,7 +103,7 @@ fn main() -> i32 {
 
     // read from fpga memory and write to channel
     for x, y in iteration(fpga, width, height) {
-        let idx = y*width + x;
+        let idx = y * width + x;
         write_channel8(&mut chan_fpga_to_cgra, read(arr_fpga, idx));
     }
 
