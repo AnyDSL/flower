@@ -232,7 +232,6 @@ fn main() -> () {
         for x in aie_pipeline(0, img_dim.width / v_size) {
             let data_slice = cgra_window_read_channel_v8[T](input);
             let lbuff_idx = (lbuf_seg * img_dim.width) + (x * v_size);
-            //let lbuff_idx = (lbuf_seg * img_dim.width) + (x * 22); // 22?
             cgra_store_v_local[T](lbuff(lbuff_idx), data_slice);
         }
 
