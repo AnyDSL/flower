@@ -49,26 +49,34 @@ fn main() -> () {
         // read from the channel, process data on AI Engine (cgra) and write to a channel
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
             // Divide by 64 (>>6) to get levels 0–3
             let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
             cgra_window_write_channel_v8(&mut ch2, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
         }
 
         // read from the channel, process data on FPGA and write to a channel
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
             let value = cgra_math.min(data_slice, max_level);
             cgra_window_write_channel_v8(&mut ch3, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
 
         }
 
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
             let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
             let output = cgra_mul[DATA_TYPE](data_slice, coef);
             let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
             cgra_window_write_channel_v8(&mut ch4, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
         }
 
         // read from the channel and write to fpga global memory

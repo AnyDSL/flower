@@ -55,7 +55,10 @@ fn main() -> () {
     }
 
     //let process = process3[DATA_TYPE];
-    let process = process3_flat[DATA_TYPE];
+    //let process = process3_flat[DATA_TYPE];
+    let process = process3_flat_window[DATA_TYPE];
+    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
@@ -73,8 +76,7 @@ fn main() -> () {
         // blur
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_blur, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mask, &mut ch_blur_to_sharpen_and_mask);
+            let lbuff_addrs = @prepare_lbuff(ch_in_to_blur, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen_and_mask);
         }
 
@@ -83,6 +85,9 @@ fn main() -> () {
 
             let in_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_sharpen);
             let blur_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
+            //let in_to_sharpen = cgra_read_channel_v8[DATA_TYPE](ch_in_to_sharpen); /* stream interface */
+            //let blur_to_sharpen = cgra_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask); /* stream interface */
+
 
             //let pix_sharpen = in_to_sharpen * (one + weight) + blur_to_sharpen * (-weight);
             //out.write(x, y, pix_sharpen);
@@ -97,6 +102,7 @@ fn main() -> () {
             let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, acc, ACC_SHIFT);
 
             cgra_window_write_channel_v8(&mut ch_sharpen_to_mask, res_vector);
+            //cgra_write_channel_v8(&mut ch_sharpen_to_mask, res_vector); /* stream interface */
         }
 
         // Mask (Ratio)
@@ -105,6 +111,9 @@ fn main() -> () {
             let in_to_mask      = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_mask);
             let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
             let sharpen_to_mask = cgra_window_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask);
+            //let in_to_mask      = cgra_read_channel_v8[DATA_TYPE](ch_in_to_mask); /* stream interface */
+            //let blur_to_mask    = cgra_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask); /* stream interface */
+            //let sharpen_to_mask = cgra_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask); /* stream interface */
 
             let diff = cgra_sub[DATA_TYPE](in_to_mask, blur_to_mask);
             let absolute_value = cgra_abs(diff);
@@ -115,6 +124,7 @@ fn main() -> () {
             let pix_mask_out = cgra_select[DATA_TYPE](sharpen_to_mask, in_to_mask, mask);
 
             cgra_window_write_channel_v8(&mut ch_mask_to_out, pix_mask_out);
+            //cgra__write_channel_v8(&mut ch_mask_to_out, pix_mask_out); /* stream interface */
         }
 
         // read from channel and write to fpga global memory

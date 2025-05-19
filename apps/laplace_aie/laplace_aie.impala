@@ -41,7 +41,10 @@ fn main() -> () {
     }
 
     //let process = process3[DATA_TYPE];
-    let process = process3_flat[DATA_TYPE];
+    //let process = process3_flat[DATA_TYPE];
+    let process = process3_flat_window[DATA_TYPE];
+    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
@@ -56,8 +59,7 @@ fn main() -> () {
         // read from the channel, process data on AI Engine (cgra) and write to a channel
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch1, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mask, &mut ch2);
+            let lbuff_addrs = @prepare_lbuff(ch1, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch2);
         }
 

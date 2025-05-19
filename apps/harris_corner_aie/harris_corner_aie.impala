@@ -87,7 +87,10 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
                     };
 
     //let process = process3[DATA_TYPE];
-    let process = process3_flat[DATA_TYPE];
+    //let process = process3_flat[DATA_TYPE];
+    let process = process3_flat_window[DATA_TYPE];
+    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
     for benchmark_host(num_host_iter) {
 
@@ -105,16 +108,14 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         // dx
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](in_c0, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mdx, &mut dx_c);
+            let lbuff_addrs = @prepare_lbuff(in_c0, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_x, &mut dx_c);
         }
 
         // dy
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](in_c1, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mdy, &mut dy_c);
+            let lbuff_addrs = @prepare_lbuff(in_c1, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_y, &mut dy_c);
         }
 
@@ -125,22 +126,26 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c);
+            //let dx_vec = cgra_read_channel_v8[DATA_TYPE](dx_c); /* stream interface */
 
             let dxx_acc = cgra_mul[DATA_TYPE](dx_vec, dx_vec);
             let dxx_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dxx_acc, ACC_SHIFT);
 
             cgra_window_write_channel_v8(&mut dxx_c, dxx_vec);
+            //cgra_write_channel_v8(&mut dxx_c, dxx_vec); /* stream interface */
         }
 
         // dyy
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c);
+            //let dy_vec = cgra_read_channel_v8[DATA_TYPE](dy_c); /* stream interface */
 
             let dyy_acc = cgra_mul[DATA_TYPE](dy_vec, dy_vec);
             let dyy_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dyy_acc, ACC_SHIFT);
 
             cgra_window_write_channel_v8(&mut dyy_c, dyy_vec);
+            //cgra_write_channel_v8(&mut dyy_c, dyy_vec); /* stream interface */
         }
 
         // dxy
@@ -148,11 +153,14 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
 
             let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c);
             let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c);
+            //let dx_vec = cgra_read_channel_v8[DATA_TYPE](dx_c); /* stream interface */
+            //let dy_vec = cgra_read_channel_v8[DATA_TYPE](dy_c); /* stream interface */
 
             let dxy_acc = cgra_mul[DATA_TYPE](dx_vec, dy_vec);
             let dxy_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, dxy_acc, ACC_SHIFT);
 
             cgra_window_write_channel_v8(&mut dxy_c, dxy_vec);
+            //cgra_write_channel_v8(&mut dxy_c, dxy_vec); /* stream interface */
         }
 
         // compute gxx, gyy, gxy using Gaussian blur
@@ -161,24 +169,21 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         // gxx
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dxx_c, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mg, &mut gxx_c);
+            let lbuff_addrs = @prepare_lbuff(dxx_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gxx_c);
         }
 
         // gyy
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dyy_c, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mg, &mut gyy_c);
+            let lbuff_addrs = @prepare_lbuff(dyy_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gyy_c);
         }
 
         // gxy
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](dxy_c, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mg, &mut gxy_c);
+            let lbuff_addrs = @prepare_lbuff(dxy_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gxy_c);
         }
 
@@ -188,6 +193,10 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
             let gxx = cgra_window_read_channel_v8[DATA_TYPE](gxx_c);
             let gyy = cgra_window_read_channel_v8[DATA_TYPE](gyy_c);
             let gxy = cgra_window_read_channel_v8[DATA_TYPE](gxy_c);
+
+           // let gxx = cgra_read_channel_v8[DATA_TYPE](gxx_c); /* stream interface */
+           // let gyy = cgra_read_channel_v8[DATA_TYPE](gyy_c); /* stream interface */
+           // let gxy = cgra_read_channel_v8[DATA_TYPE](gxy_c); /* stream interface */
 
             let k = cgra_broadcast[DATA_TYPE](v_size, k);
             let k_den = cgra_broadcast[DATA_TYPE](v_size, k_den);
@@ -209,6 +218,7 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
             let res = cgra_sub[DATA_TYPE](det_vec, trace_sq_k_div);
 
             cgra_window_write_channel_v8(&mut str_to_mm_buf, res);
+            //cgra_write_channel_v8(&mut str_to_mm_buf, res); /* stream interface */
         }
 
         // read from channel and write to fpga global memory

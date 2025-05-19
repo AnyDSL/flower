@@ -64,7 +64,11 @@ fn main() -> () {
     }
 
     //let process = process3[DATA_TYPE];
-    let process = process3_flat[DATA_TYPE];
+    //let process = process3_flat[DATA_TYPE];
+    let process = process3_flat_window[DATA_TYPE];
+
+    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
@@ -81,15 +85,13 @@ fn main() -> () {
         // gx
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_x) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_gx, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mask_x, &mut ch_gx_to_mag);
+            let lbuff_addrs = @prepare_lbuff(ch_in_to_gx, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_x, &mut ch_gx_to_mag);
         }
         // gy
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_y) {
 
-            let lbuff_addrs = @prepare_lbuff3[DATA_TYPE](ch_in_to_gy, lbuff, kernel_width, img_dim);
-            //process(img_dim, lbuff_addrs, mask_y, &mut ch_gy_to_mag);
+            let lbuff_addrs = @prepare_lbuff(ch_in_to_gy, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_y, &mut ch_gy_to_mag);
         }
         // magnitude
@@ -98,6 +100,9 @@ fn main() -> () {
 
             let gx_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gx_to_mag);
             let gy_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gy_to_mag);
+
+            //let gx_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gx_to_mag); /* stream interface */
+            //let gy_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gy_to_mag); /* stream interface */
 
             let gx_mag = cgra_abs(gx_to_mag);
             let gy_mag = cgra_abs(gy_to_mag);
@@ -114,6 +119,7 @@ fn main() -> () {
             let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, res, ACC_SHIFT);
 
             cgra_window_write_channel_v8(&mut ch_mag_to_out, res_vector);
+            //cgra_write_channel_v8(&mut ch_mag_to_out, res_vector); /* stream interface */
         }
 
         // read from channel and write to fpga global memory
