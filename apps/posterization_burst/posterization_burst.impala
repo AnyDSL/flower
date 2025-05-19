@@ -14,12 +14,10 @@ fn main() -> () {
     let null_mask = null_mask();
 
     let auto_locate = (-1, -1);
-    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
 
-    let fpga = Core::FPGA(core_config.device);
-    let cgra = Core::CGRA(core_config);
+    let device = 0;
+    let fpga = Core::FPGA(device);
     let fpga_math = get_core_intrinsics(fpga);
-    let cgra_math = get_core_intrinsics(cgra);
 
     let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
     let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
@@ -57,7 +55,7 @@ fn main() -> () {
                 value_vec(v) = value;
             }
 
-            cgra_window_write_channel_v8(&mut ch2, value);
+            write_channel8(&mut ch2, value_vec);
         }
 
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
@@ -67,14 +65,14 @@ fn main() -> () {
             let mut value = 0;
 
             for v in unroll(0, v_size - 1) {
-                value = fpga_math.min(data(v), max_level);
+                value = min(data(v), max_level);
                 value_vec(v) = value;
             }
 
             write_channel8[DATA_TYPE](&mut ch3, value_vec);
         }
 
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
 
             let data = read_channel8[DATA_TYPE](&mut ch3);
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
