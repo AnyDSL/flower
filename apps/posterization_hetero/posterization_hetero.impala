@@ -62,7 +62,7 @@ fn main() -> () {
             let mut value = 0;
 
             for v in unroll(0, v_size - 1) {
-                value = fpga_math.min(data(v), max_level);
+                value = min(data(v), max_level);
                 value_vec(v) = value;
             }
 
