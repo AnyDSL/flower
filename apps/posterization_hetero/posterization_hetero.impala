@@ -59,12 +59,12 @@ fn main() -> () {
             //let idx = y * img_dim.width + x;
             let data = read_channel8[DATA_TYPE](&mut ch2);
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
-            let mut value = 0;
+            //let mut value = 0;
 
-            for v in unroll(0, v_size - 1) {
-                value = fpga_math.min(data(v), max_level);
-                value_vec(v) = value;
-            }
+         //   for v in unroll(0, v_size - 1) {
+         //       value = min(data(v), max_level);
+         //       value_vec(v) = value;
+         //   }
 
             write_channel8[DATA_TYPE](&mut ch3, value_vec);
         }

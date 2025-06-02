@@ -3,7 +3,9 @@
 static mut ch_in_to_blur               : channel8[pixel_t];
 static mut ch_in_to_sharpen            : channel8[pixel_t];
 static mut ch_in_to_mask            : channel8[pixel_t];
-static mut ch_blur_to_sharpen_and_mask : channel8[pixel_t];
+//static mut ch_blur_to_sharpen_and_mask : channel8[pixel_t];
+static mut ch_blur_to_sharpen          : channel8[pixel_t];
+static mut ch_blur_to_mask             : channel8[pixel_t];
 static mut ch_sharpen_to_mask          : channel8[pixel_t];
 static mut ch_mask_to_out              : channel8[pixel_t];
 
@@ -57,6 +59,7 @@ fn main() -> () {
     //let process = process3[DATA_TYPE];
     //let process = process3_flat[DATA_TYPE];
     let process = process3_flat_window[DATA_TYPE];
+    let process_split2 = process3_flat_window_split2[DATA_TYPE];
     let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
     //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
@@ -77,14 +80,14 @@ fn main() -> () {
         for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch_in_to_blur, lbuff, kernel_width, img_dim);
-            process(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen_and_mask);
+            process_split2(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen, &mut ch_blur_to_mask);
         }
 
         // sharpen
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let in_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_sharpen);
-            let blur_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
+            let blur_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen);
 
             //let in_to_sharpen = cgra_read_channel_v8[DATA_TYPE](ch_in_to_sharpen); /* stream interface */
             //let blur_to_sharpen = cgra_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask); /* stream interface */
@@ -110,7 +113,7 @@ fn main() -> () {
         for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let in_to_mask      = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_mask);
-            let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
+            let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_mask);
             let sharpen_to_mask = cgra_window_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask);
             //let in_to_mask      = cgra_read_channel_v8[DATA_TYPE](ch_in_to_mask); /* stream interface */
             //let blur_to_mask    = cgra_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask); /* stream interface */

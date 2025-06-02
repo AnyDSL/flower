@@ -73,8 +73,11 @@ set (SQUARE_AIE_DIR               ${APPS_DIR}/square_aie)
 set (SOBEL_AIE_DIR                ${APPS_DIR}/sobel_aie)
 set (SOBEL_LUMA_AIE_DIR           ${APPS_DIR}/sobel_luma_aie)
 set (HARRIS_CORNER_AIE_DIR        ${APPS_DIR}/harris_corner_aie)
+set (HARRIS_CORNER_AIE_SPLIT_DIR  ${APPS_DIR}/harris_corner_aie_split)
 set (SHI_THOMASI_AIE_DIR          ${APPS_DIR}/shi_thomasi_aie)
+set (SHI_THOMASI_AIE_SPLIT_DIR    ${APPS_DIR}/shi_thomasi_aie_split)
 set (UNSHARP_AIE_DIR              ${APPS_DIR}/unsharp_aie)
+set (UNSHARP_AIE_SPLIT_DIR        ${APPS_DIR}/unsharp_aie_split)
 set (POSTERIZATION_HETERO_DIR     ${APPS_DIR}/posterization_hetero)
 set (POSTERIZATION_AIE_DIR        ${APPS_DIR}/posterization_aie)
 set (POSTERIZATION_AIE_SINGLE_DIR ${APPS_DIR}/posterization_aie_single)
@@ -115,8 +118,11 @@ set(JACOBI_AIE_FILES          ${JACOBI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${JACO
 set(SQUARE_AIE_FILES          ${SQUARE_AIE_DIR}/square_aie.impala)
 set(SOBEL_AIE_FILES           ${SOBEL_AIE_DIR}/mask_i32.impala ${SOBEL_AIE_DIR}/sobel_aie.impala)
 set(HARRIS_CORNER_AIE_FILES   ${HARRIS_CORNER_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_AIE_DIR}/harris_corner_aie.impala)
-set(SHI_THOMASI_AIE_FILES     ${SHI_THOMASI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_AIE_DIR}/shi_thomasi_aie.impala)
-set(UNSHARP_AIE_FILES         ${UNSHARP_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_DIR}/unsharp_aie.impala)
+set(HARRIS_CORNER_AIE_SPLIT_FILES ${HARRIS_CORNER_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_AIE_SPLIT_DIR}/harris_corner_aie_split.impala)
+set(SHI_THOMASI_AIE_FILES         ${SHI_THOMASI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_AIE_DIR}/shi_thomasi_aie.impala)
+set(SHI_THOMASI_AIE_SPLIT_FILES   ${SHI_THOMASI_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_AIE_SPLIT_DIR}/shi_thomasi_aie_split.impala)
+set(UNSHARP_AIE_FILES             ${UNSHARP_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_DIR}/unsharp_aie.impala)
+set(UNSHARP_AIE_SPLIT_FILES       ${UNSHARP_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_SPLIT_DIR}/unsharp_aie_split.impala)
 set(POSTERIZATION_HETERO_FILES     ${POSTERIZATION_HETERO_DIR}/posterization_hetero.impala)
 set(POSTERIZATION_AIE_FILES        ${POSTERIZATION_AIE_DIR}/posterization_aie.impala)
 set(POSTERIZATION_AIE_SINGLE_FILES ${POSTERIZATION_AIE_SINGLE_DIR}/posterization_aie_single.impala)
@@ -478,6 +484,20 @@ target_link_libraries(harris_corner_aie ${ANYDSL_RUNTIME_LIBRARIES})
 set_target_properties(harris_corner_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
 set_target_properties(harris_corner_aie PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
+
+anydsl_runtime_wrap(HARRIS_CORNER_AIE_SPLIT_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${HARRIS_CORNER_AIE_SPLIT_FILES})
+add_executable(harris_corner_aie_split "${HARRIS_CORNER_AIE_SPLIT_DIR}/main.cpp" ${HARRIS_CORNER_AIE_SPLIT_PROGRAM})
+target_link_libraries(harris_corner_aie_split ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(harris_corner_aie_split PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+set_target_properties(harris_corner_aie_split PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+
+
 anydsl_runtime_wrap(SHI_THOMASI_AIE_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
@@ -489,6 +509,20 @@ target_link_libraries(shi_thomasi_aie ${ANYDSL_RUNTIME_LIBRARIES})
 set_target_properties(shi_thomasi_aie PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
 set_target_properties(shi_thomasi_aie PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
+
+anydsl_runtime_wrap(SHI_THOMASI_AIE_SPLIT_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SHI_THOMASI_AIE_SPLIT_FILES})
+add_executable(shi_thomasi_aie_split "${SHI_THOMASI_AIE_SPLIT_DIR}/main.cpp" ${SHI_THOMASI_AIE_SPLIT_PROGRAM})
+target_link_libraries(shi_thomasi_aie_split ${ANYDSL_RUNTIME_LIBRARIES})
+set_target_properties(shi_thomasi_aie_split PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
+set_target_properties(shi_thomasi_aie_split PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+
+
+
 anydsl_runtime_wrap(UNSHARP_AIE_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
@@ -498,6 +532,18 @@ anydsl_runtime_wrap(UNSHARP_AIE_PROGRAM
 add_executable(unsharp_aie ${UNSHARP_AIE_PROGRAM})
 target_link_libraries(unsharp_aie ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("unsharp_aie" unsharp_aie)
+
+
+anydsl_runtime_wrap(UNSHARP_AIE_SPLIT_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${UNSHARP_AIE_SPLIT_FILES})
+add_executable(unsharp_aie_split ${UNSHARP_AIE_SPLIT_PROGRAM})
+target_link_libraries(unsharp_aie_split ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("unsharp_aie_split" unsharp_aie_split)
+
 
 anydsl_runtime_wrap(POSTERIZATION_HETERO_PROGRAM
     FRONTEND "artic"
