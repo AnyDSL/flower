@@ -89,7 +89,7 @@ fn main() -> () {
     release(arr_fpga);
     release(arr);
     release(out);
-
+    print_i32(result);
     print_string("Executed!\n");
 }
 
