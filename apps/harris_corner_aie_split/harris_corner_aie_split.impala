@@ -208,7 +208,9 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
             let main_diag =  cgra_mul[DATA_TYPE](gxx, gyy);
             let anti_diag =  cgra_mul[DATA_TYPE](gxy, gxy);
 
-            let det = cgra_sub[i64](main_diag, anti_diag);
+            let anti_diag_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, anti_diag, ACC_SHIFT);
+
+            let det = cgra_sub[i64](main_diag, anti_diag_vec);
             let det_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, det, ACC_SHIFT);
             let trace = cgra_add[DATA_TYPE](gxx, gyy);
 
