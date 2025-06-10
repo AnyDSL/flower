@@ -1,3 +1,4 @@
+// Note: for window interface the maximum supported buffer size is 2048
 
 static mut in_c0        :channel8[pixel_t];
 static mut in_c1        :channel8[pixel_t];
@@ -14,7 +15,7 @@ static mut gxy_c        :channel8[pixel_t];
 static mut gyy_c        :channel8[pixel_t];
 
 #[export]
-fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
+fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
 
     let img_dim = Img_dim { width = 1024, height = 1024 };
 

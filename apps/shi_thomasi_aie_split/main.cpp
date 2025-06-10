@@ -32,7 +32,7 @@ void displayFrame(unsigned char* frame, int stride, const int width, const int h
 }
 
 typedef STINCILLA_DATA_TYPE pixel_t;
-extern "C" void shi_thomasi_aie(pixel_t*, pixel_t*);
+extern "C" void shi_thomasi_aie_split(pixel_t*, pixel_t*);
 
 /*************************************************************************
  * Main function                                                         *
@@ -54,7 +54,7 @@ int main(int argc, const char **argv) {
         }
     }
 
-    shi_thomasi_aie(input.data(), output.data());
+    shi_thomasi_aie_split(input.data(), output.data());
 
     // Print Output
     int pOfX= 0; //width-20;
