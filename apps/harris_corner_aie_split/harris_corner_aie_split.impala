@@ -1,10 +1,5 @@
-/*
- * Harris Corner
- *
- * A Combined Corner and Edge Detector
- * Chris Harris and Mike Stephens - Alvey Vision Conference, 1988
- *
- */
+// Note: for window interface the maximum supported buffer size is 2048
+
 
 static mut in_c0        :channel8[pixel_t];
 static mut in_c1        :channel8[pixel_t];
@@ -21,7 +16,7 @@ static mut gxy_c        :channel8[pixel_t];
 static mut gyy_c        :channel8[pixel_t];
 
 #[export]
-fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
+fn harris_corner_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
 
     let img_dim = Img_dim { width = 1024, height = 1024 };
 
@@ -220,8 +215,16 @@ fn harris_corner_burst(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
             let trace_sq_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, trace_sq, ACC_SHIFT);
             let trace_sq_k = cgra_mul[DATA_TYPE](trace_sq_vec, k);
             let trace_sq_k_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, trace_sq_k, ACC_SHIFT);
-            let trace_sq_k_div = cgra_div[DATA_TYPE](trace_sq_k_vec, k_den);
-            let res = cgra_sub[DATA_TYPE](det, trace_sq_k_div);
+            //let trace_sq_k_div = cgra_div[DATA_TYPE](trace_sq_k_vec, k_den);
+            // AIE API v2022_2 does not support division, therefore we emulate it.
+            let div_shift = 35 : u32; // shift for 32-bit integer division
+            let reciprocal = 3435973837; // floor(2^shift / k_den)
+            let trace_sq_k_div = cgra_mul[DATA_TYPE](trace_sq_k_vec, reciprocal);
+            let trace_sq_k_div_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, trace_sq_k_div, div_shift);
+
+
+
+            let res = cgra_sub[DATA_TYPE](det, trace_sq_k_div_vec);
 
             cgra_window_write_channel_v8(&mut str_to_mm_buf, res);
             //cgra_write_channel_v8(&mut str_to_mm_buf, res); /* stream interface */
