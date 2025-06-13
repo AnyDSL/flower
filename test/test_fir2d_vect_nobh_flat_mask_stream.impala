@@ -305,7 +305,7 @@ fn main() -> () {
 
         // read from fpga memory and write to channel
         for x, y in iteration(fpga, img_dim) {
-            let idx = y * img_dim.width + x;
+            let idx = y * (img_dim.width / size_v)+ x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
@@ -322,7 +322,7 @@ fn main() -> () {
 
         // read from channel and write to fpga memory
         for x, y in iteration(fpga, img_dim) {
-            let idx = y * img_dim.width + x;
+            let idx = y * (img_dim.width / v_size)+ x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
         }
 

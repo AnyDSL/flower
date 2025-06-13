@@ -58,7 +58,7 @@ fn @iteration(body: fn(i32, i32, [DATA_TYPE * 8]) -> ()) = @|core: Core, dim: Im
 
                 for y in range(0, height) {
                     for x in pipeline(0, 0, width / v_size) {
-                        let idx = y * width + x;
+                        let idx = y * (width / v_size)+ x;
                         let mut val = bitcast[[DATA_TYPE * 8]]([0; 8]);
 
                         match input.flow_type {
@@ -371,7 +371,7 @@ fn main() -> () {
 
         // read from channel and write to fpga memory
         for x, y, ch2_flow in iteration(fpga, img_dim, ch2_flow) {
-            let idx = y * img_dim.width + x;
+            let idx = y * (img_dim.width / v_size)+ x;
             write(out_fpga, idx, ch2_flow);
         }
 

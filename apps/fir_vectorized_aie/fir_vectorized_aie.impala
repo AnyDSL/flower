@@ -38,7 +38,7 @@ fn main() -> () {
 
         // read from fpga memory and write to channel
         for x, y in iteration_(fpga, width, height) {
-            let idx = y * width + x; // flattening the iteration space for 1D array
+            let idx = y * (width / v_size) + x; // flattening the iteration space for 1D array
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
@@ -81,7 +81,7 @@ fn main() -> () {
 
         // read from channel and write to fpga memory
         for x, y in iteration_(fpga, width, height) {
-            let idx = y * width + x;
+            let idx = y * (width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
         }
 

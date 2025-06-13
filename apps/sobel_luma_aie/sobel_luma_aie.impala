@@ -77,7 +77,7 @@ fn main() -> () {
 
         // read from fpga global memory and write to a channel
         for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
-            let idx = y * img_dim.width + x;
+            let idx = y * (img_dim.width / v_size) + x;
             let data = read(arr_fpga, idx);
             write_channel8[DATA_TYPE](&mut ch_in_to_luma, data);
         }
@@ -156,7 +156,7 @@ fn main() -> () {
 
         // read from channel and write to fpga global memory
         for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
-            let idx = y * img_dim.width + x;
+            let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch_mag_to_out));
         }
 

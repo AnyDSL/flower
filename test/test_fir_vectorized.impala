@@ -29,7 +29,7 @@ fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32|
                 },
                 _ => {
                     generate(core,||{
-                        for y in range(0, height / v_size) {
+                        for y in range(0, height) {
                             for x in aie_pipeline(0, width / v_size) {
                                 @body(x, y);
                             }
@@ -103,7 +103,7 @@ fn main() -> () {
         // read from fpga memory and write to channel
         // probably we need to divide the iterations by v_size
         for x, y in iteration(fpga, width, height) {
-            let idx = y * width + x;
+            let idx = y * (width / v_size) + x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
@@ -146,7 +146,7 @@ fn main() -> () {
 
         // read from channel and write to fpga memory
         for x, y in iteration(fpga, width, height) {
-            let idx = y * width + x;
+            let idx = y * (width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
         }
 
