@@ -453,6 +453,18 @@ add_executable(square_aie ${SQUARE_AIE_PROGRAM})
 target_link_libraries(square_aie ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_aie" square_aie)
 
+
+anydsl_runtime_wrap(SQUARE_AIE_PARALLEL_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_AIE_PARALLEL_FILES})
+add_executable(square_aie_parallel ${SQUARE_AIE_PARALLEL_PROGRAM})
+target_link_libraries(square_aie_parallel ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("square_aie" square_aie_parallel)
+
+
 anydsl_runtime_wrap(SOBEL_AIE_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
