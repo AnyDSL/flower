@@ -1,3 +1,4 @@
+// one fpga reader/writer data mover kernel to write/read on/from several channels is extreamly slow due to the port congestion
 type DATA_TYPE = f32;
 static v_size = 8;
 static tile_size = 1;
@@ -85,7 +86,7 @@ fn main() -> i32 {
     let width   = 2048;
     let height  = 2048;
 
-    let core_config = Config{device = 0, runtime_ratio = 1, location = (1,1), vector_size = v_size, interface = Interface::window};
+    let core_config = Config{device = 0, runtime_ratio = 1, location = (-1,-1), vector_size = v_size, interface = Interface::window};
 
     let fpga = Core::FPGA(core_config.device);
     let cgra = Core::CGRA(core_config);
