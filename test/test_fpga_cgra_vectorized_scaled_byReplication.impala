@@ -114,6 +114,9 @@ fn main() -> i32 {
     for x, y, chunk_size in iteration(fpga, width, height) {
         let idx0 = y * (width / v_size) + (x + 0 * chunk_size);;
         write_channel8(&mut chan0_fpga_to_cgra, read(arr_fpga, idx0));
+    }
+
+    for x, y, chunk_size in iteration(fpga, width, height) {
 
         let idx1 = y * (width / v_size) + (x + 1 * chunk_size);;
         write_channel8(&mut chan1_fpga_to_cgra, read(arr_fpga, idx1));
@@ -141,6 +144,10 @@ fn main() -> i32 {
 
        let idx0 = y * (width / v_size) + (x + 0 * chunk_size);
         write(out_fpga, idx0, read_channel8(&mut chan0_cgra_to_fpga));
+    }
+
+    // read from channel and write to fpga memory
+    for x, y, chunk_size in iteration(fpga, width, height) {
 
         let idx1 = y * (width / v_size) + (x + 1 * chunk_size);
         write(out_fpga, idx1, read_channel8(&mut chan1_cgra_to_fpga));
