@@ -1,5 +1,4 @@
 // one fpga reader/writer data mover kernel to write/read on/from several channels is extreamly slow due to the port congestion
-// needs GMEM_OPT option
 type DATA_TYPE = f32;
 static v_size = 8;
 static tile_size = 2;
@@ -33,18 +32,19 @@ fn @iteration_stream(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, heigh
 };
 
 
-fn @iteration(body: fn(i32, i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
+fn @iteration(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
 
-    let vectors_per_row  = width / v_size;
-    let rows_per_tile    = height / tile_size;
-    let chunk_size       = vectors_per_row * rows_per_tile;
+    let vectors_per_row = width / v_size;
+    let rows_per_tile = height / tile_size;
 
     match core {
         Core::FPGA(_) => {
+
+
             generate(core,||{
                 for y in range(0, rows_per_tile) {
                     for x in pipeline(0, 0, vectors_per_row) {
-                        @body(x, y, chunk_size);
+                        @body(x, y);
                     }
                 }
             });
@@ -53,7 +53,7 @@ fn @iteration(body: fn(i32, i32, i32) -> ()) = @|core: Core, width: i32, height:
             match config.interface {
                 Interface::stream => {
                     generate(core,||{
-                        @body(1, 1, 0);
+                        @body(1, 1);
                     });
                 },
                 _ => {
@@ -61,7 +61,7 @@ fn @iteration(body: fn(i32, i32, i32) -> ()) = @|core: Core, width: i32, height:
                     generate(core,||{
                         for y in range(0, rows_per_tile) {
                             for x in pipeline(0, 0, vectors_per_row) {
-                                @body(x, y, 0);
+                                @body(x, y);
                             }
                         }
                     });
@@ -73,6 +73,7 @@ fn @iteration(body: fn(i32, i32, i32) -> ()) = @|core: Core, width: i32, height:
 };
 
 
+// convert to vector space
 fn @read(buf: Buffer, i: i32) -> [DATA_TYPE * 8] { bitcast[&addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) }
 fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspace(1)[[DATA_TYPE * 8]]](buf.data)(i) = v }
 
@@ -96,10 +97,20 @@ fn main() -> i32 {
     let fpga_math = get_core_intrinsics(fpga);
     let cgra_math = get_core_intrinsics(cgra);
 
+    // --------- sizing (vector–aware) --------------------------------------
+    let vectors_per_row  = width / v_size;
+    let vectors_per_tile = vectors_per_row * height / tile_size;
+    let bytes_per_tile   = (vectors_per_tile * v_size) as i64 * sizeof[DATA_TYPE]();
+
+
+    // host buffers
     let arr       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
     let out       = alloc_cpu((width * height) as i64 * sizeof[DATA_TYPE]());
-    let arr_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
-    let out_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
+    // device buffers in pixel space
+    let arr1_fpga = alloc_device(fpga,bytes_per_tile);
+    let arr2_fpga = alloc_device(fpga,bytes_per_tile);
+    let out1_fpga = alloc_device(fpga,bytes_per_tile);
+    let out2_fpga = alloc_device(fpga,bytes_per_tile);
 
     // initialize host buffers
     for i in range(0, width * height) {
@@ -109,55 +120,59 @@ fn main() -> i32 {
         out_ptr(i) = 0:DATA_TYPE;
     }
 
-    // copy from host to fpga
-    copy(arr, arr_fpga);
+    // copy first tile to arr1_fpga
+    copy_offset(arr, 0, arr1_fpga, 0, bytes_per_tile as i64);
+    // copy second tile to arr2_fpga
+    copy_offset(arr, bytes_per_tile, arr2_fpga, 0, bytes_per_tile as i64);
 
     // read from fpga memory and write to channel
-    for x, y, chunk_size in iteration(fpga, width, height) {
-        let idx = /* base */ 0 * chunk_size
-                + /* row  */ y * vectors_per_row
-                + /* col  */ x;
-        write_channel8(&mut chan0_fpga_to_cgra, read(arr_fpga, idx));
+    for x, y in iteration(fpga, width, height) {
+        let idx0 = y * (width / v_size) + x;
+        write_channel8(&mut chan0_fpga_to_cgra, read(arr1_fpga, idx0));
     }
 
-    for x, y, chunk_size in iteration(fpga, width, height) {
-        let idx = /* base */ 1 * chunk_size
-                + /* row  */ y * vectors_per_row
-                + /* col  */ x;
-        write_channel8(&mut chan1_fpga_to_cgra, read(arr_fpga, idx));
+    for x, y in iteration(fpga, width, height) {
+
+        let idx1 = y * (width / v_size) + x;
+        write_channel8(&mut chan1_fpga_to_cgra, read(arr2_fpga, idx1));
     }
 
 
     // cgra tile0 processing the first chunk of data
-    for x, y, _chunk_size in iteration(cgra, width, height) {
+    for x, y in iteration(cgra, width, height) {
+        //let idx = y*width + x;
         let temp0 = read_channel8(&mut chan0_fpga_to_cgra);
         write_channel8(&mut chan0_cgra_to_fpga, temp0);
     }
 
 
     // cgra tile1 processing the second chunk of data
-    for x, y, _chunk_size in iteration(cgra, width, height) {
+    for x, y in iteration(cgra, width, height) {
+        //let idx = y*width + x;
         let temp1 = read_channel8(&mut chan1_fpga_to_cgra);
         write_channel8(&mut chan1_cgra_to_fpga, temp1);
     }
 
 
     // read from channel and write to fpga memory
-    for x, y, chunk_size in iteration(fpga, width, height) {
-        let idx = 0 * chunk_size + y * vectors_per_row + x;
-        write(out_fpga, idx, read_channel8(&mut chan0_cgra_to_fpga));
+    for x, y in iteration(fpga, width, height) {
+
+       let idx0 = y * (width / v_size) + x;
+        write(out1_fpga, idx0, read_channel8(&mut chan0_cgra_to_fpga));
     }
 
     // read from channel and write to fpga memory
-    for x, y, chunk_size in iteration(fpga, width, height) {
-        let idx = 1 * chunk_size + y * vectors_per_row + x;
-        write(out_fpga, idx, read_channel8(&mut chan1_cgra_to_fpga));
+    for x, y in iteration(fpga, width, height) {
+
+        let idx1 = y * (width / v_size) + x;
+        write(out2_fpga, idx1, read_channel8(&mut chan1_cgra_to_fpga));
     }
 
     sync_device(fpga);
 
     // copy back from fpga to host
-    copy(out_fpga, out);
+    copy_offset(out1_fpga, 0, out, 0, bytes_per_tile as i64);
+    copy_offset(out2_fpga, 0, out, bytes_per_tile, bytes_per_tile as i64);
 
 
     // verify the result
@@ -172,11 +187,13 @@ fn main() -> i32 {
         print_string("Test FAILED!\n");
     }
 
-    release(out_fpga);
-    release(arr_fpga);
+    release(out1_fpga);
+    release(arr1_fpga);
+    release(out2_fpga);
+    release(arr2_fpga);
+
     release(arr);
     release(out);
 
     if passed >= 256 { 255 } else { passed }
 }
-
