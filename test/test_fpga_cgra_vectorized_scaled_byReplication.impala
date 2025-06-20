@@ -90,6 +90,7 @@ fn main() -> i32 {
 
     let core_config = Config{device = 0, runtime_ratio = 1, location = (-1,-1), vector_size = v_size, interface = Interface::window};
 
+    let vectors_per_row  = width / v_size;
     let fpga = Core::FPGA(core_config.device);
     let cgra = Core::CGRA(core_config);
 
