@@ -34,7 +34,6 @@ fn @iteration_stream(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, heigh
 
 fn @iteration(body: fn(i32, i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
 
-
     let vectors_per_row = width / v_size;
     //let total_vectors = vectors_per_row * height;
     let chunk_size = vectors_per_row / tile_size;
@@ -102,8 +101,6 @@ fn main() -> i32 {
     let arr_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
     let out_fpga = alloc_device(fpga, (width * height) as i64 * sizeof[DATA_TYPE]());
 
-    let vectors_per_row = width / v_size;
-
     // initialize host buffers
     for i in range(0, width * height) {
         let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
@@ -115,13 +112,19 @@ fn main() -> i32 {
     // copy from host to fpga
     copy(arr, arr_fpga);
 
-    // read from fpga memory and write to channel
+    // read from fpga memory and write to channels (Scatter)
     for x, y, chunk_size in iteration(fpga, width, height) {
-        let idx0 = y * vectors_per_row + (x + 0 * chunk_size);;
-        write_channel8(&mut chan0_fpga_to_cgra, read(arr_fpga, idx0));
+        //
+        let mut tile = bitcast[[[DATA_TYPE * 8] * 2]]([0; 16]);
 
-        let idx1 = y * vectors_per_row + (x + 1 * chunk_size);;
-        write_channel8(&mut chan1_fpga_to_cgra, read(arr_fpga, idx1));
+        for t in unroll(0, tile_size) {
+            let idx = y * (width / v_size) + (x + t * chunk_size);
+            tile(t) = read(arr_fpga, idx);            // DRAM -> on-chip
+        }
+
+        // tile can be added as a layer of a nested-loop in the iteration function
+        write_channel8(&mut chan0_fpga_to_cgra, tile(0) );
+        write_channel8(&mut chan1_fpga_to_cgra, tile(1));
     }
 
 
@@ -139,14 +142,20 @@ fn main() -> i32 {
     }
 
 
-    // read from channel and write to fpga memory
+    // read from channels and write to fpga memory (Gatther)
     for x, y, chunk_size in iteration(fpga, width, height) {
 
-       let idx0 = y * (width / v_size) + (x + 0 * chunk_size);
-        write(out_fpga, idx0, read_channel8(&mut chan0_cgra_to_fpga));
+        let mut tile = bitcast[[[DATA_TYPE * 8] * 2]]([0; 16]);
 
-        let idx1 = y * (width / v_size) + (x + 1 * chunk_size);
-        write(out_fpga, idx1, read_channel8(&mut chan1_cgra_to_fpga));
+        tile(0) = read_channel8(&mut chan0_cgra_to_fpga);
+        tile(1) = read_channel8(&mut chan1_cgra_to_fpga);
+
+
+        for t in unroll(0, tile_size) {
+            let idx = y * (width / v_size) + (x + t * chunk_size);
+            write(out_fpga, idx, tile(t));            // on-chip -> DRAM (local mem to global mem)
+        }
+
     }
 
     sync_device(fpga);
