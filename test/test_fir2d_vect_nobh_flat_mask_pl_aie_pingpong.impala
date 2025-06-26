@@ -56,37 +56,32 @@ fn @iteration(body: fn(i32, i32, [DATA_TYPE * 8]) -> ()) = @|core: Core, dim: Im
                 let ping = reserve_shared[[DATA_TYPE * 8]](width);
                 let pong = reserve_shared[[DATA_TYPE * 8]](width);
 
-                // copy one image row into a buffer
-                fn @fetch_row(dst: &mut addrspace(3) [[DATA_TYPE * 8]], row: i32) -> () {
-                    let base = row * (width / v_size);
-                    for x in pipeline(0, 0, width / v_size) {
-                        let idx = base + x;
-                        dst(x) = match input.flow_type {
-                            FlowType::gmem    => read(input.buffer, idx),
-                            FlowType::channel => read_channel8[DATA_TYPE](input.channel),
-                        };
+                //grab one 8‑lane vector from GMEM/channel
+                fn @get_vec(row: i32, col_vec: i32) -> [DATA_TYPE * 8] {
+                    let idx = row * (width / v_size) + col_vec;
+                    match input.flow_type {
+                        FlowType::gmem    => read(input.buffer, idx),
+                        FlowType::channel => read_channel8[DATA_TYPE](input.channel),
                     }
                 }
 
-                // load first row into ping
-                fetch_row(ping, 0);
+                // prefetch complete row‑0 into ping
+                for x in pipeline(0, 0, width / v_size) {
+                    ping(x) = get_vec(0, x);
+                }
 
-                // iterate over rows
+                // MAIN LOOP
                 for y in range(0, height) {
-                    let (read_buf, write_buf) = if (y & 1) == 0 {
-                        (ping, pong)
-                    } else {
-                        (pong, ping)
-                    };
+                    let (read_buf, write_buf) = if (y & 1) == 0 { (ping, pong) } else { (pong, ping) };
 
-                    // 1. compute on current row
                     for x in pipeline(0, 0, width / v_size) {
+                        // compute on row y (already resident)
                         @body(x, y, read_buf(x));
-                    }
 
-                    // 2. prefetch next row
-                    if y + 1 < height {
-                        fetch_row(write_buf, y + 1);
+                        // prefetch same column of row y+1 into other buffer
+                        if y + 1 < height {
+                            write_buf(x) = get_vec(y + 1, x);
+                        }
                     }
                 }
 
