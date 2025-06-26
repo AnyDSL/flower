@@ -56,24 +56,59 @@ fn @iteration(body: fn(i32, i32, [DATA_TYPE * 8]) -> ()) = @|core: Core, dim: Im
                 let ping = reserve_shared[[DATA_TYPE * 8]](width);
                 let pong = reserve_shared[[DATA_TYPE * 8]](width);
 
-                for y in range(0, height) {
+                // copy one image row into a buffer
+                fn @fetch_row(dst: &mut addrspace(3) [[DATA_TYPE * 8]], row: i32) -> () {
+                    let base = row * (width / v_size);
                     for x in pipeline(0, 0, width / v_size) {
-                        let idx = y * (width / v_size) + x;
-                        let mut val = bitcast[[DATA_TYPE * 8]]([0; 8]);
-
-                        match input.flow_type {
-                            FlowType::gmem    => val = read(input.buffer, idx),
-                            FlowType::channel => val = read_channel8[DATA_TYPE](input.channel)
-                        }
-
-                        if y % 2 == 0 { ping(x) = val; } else { pong(x) = val; };
-                    }
-
-                    for x in pipeline(0, 0, width / v_size) {
-                        let local_buff = if (y % 2 == 0) { ping(x) } else { pong(x) };
-                        @body(x, y, local_buff);
+                        let idx = base + x;
+                        dst(x) = match input.flow_type {
+                            FlowType::gmem    => read(input.buffer, idx),
+                            FlowType::channel => read_channel8[DATA_TYPE](input.channel),
+                        };
                     }
                 }
+
+                // load first row into ping
+                fetch_row(ping, 0);
+
+                // iterate over rows
+                for y in range(0, height) {
+                    let (read_buf, write_buf) = if (y & 1) == 0 {
+                        (ping, pong)
+                    } else {
+                        (pong, ping)
+                    };
+
+                    // 1. compute on current row
+                    for x in pipeline(0, 0, width / v_size) {
+                        @body(x, y, read_buf(x));
+                    }
+
+                    // 2. prefetch next row
+                    if y + 1 < height {
+                        fetch_row(write_buf, y + 1);
+                    }
+                }
+
+
+          //      for y in range(0, height) {
+          //          for x in pipeline(0, 0, width / v_size) {
+          //              let idx = y * (width / v_size) + x;
+          //              let mut val = bitcast[[DATA_TYPE * 8]]([0; 8]);
+
+          //              match input.flow_type {
+          //                  FlowType::gmem    => val = read(input.buffer, idx),
+          //                  FlowType::channel => val = read_channel8[DATA_TYPE](input.channel)
+          //              }
+
+          //              if y % 2 == 0 { ping(x) = val; } else { pong(x) = val; };
+          //          }
+
+          //          for x in pipeline(0, 0, width / v_size) {
+          //              let local_buff = if (y % 2 == 0) { ping(x) } else { pong(x) };
+          //              @body(x, y, local_buff);
+          //          }
+          //      }
             });
         },
         Core::CGRA(config) => {
