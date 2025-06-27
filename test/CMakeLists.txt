@@ -216,6 +216,18 @@ if(DEVICE STREQUAL "fpga")
     add_test("test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_opt" test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_opt)
 
 
+    anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_FLAT_MASK_PL_AIE_PINGPONG_SCALED
+        FRONTEND "artic"
+        CLANG_FLAGS ${CLANG_FLAGS}
+        ARTIC_FLAGS ${IMPALA_FLAGS}
+        HLS_FLAGS ${HLS_FLAGS}
+        FILES ${BACKEND_FILE} ${PIXEL_TYPE_FILE} ../src/utils.impala test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_scaled.impala)
+    add_executable(test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_scaled ${TEST_FIR2D_VECT_NOBH_FLAT_MASK_PL_AIE_PINGPONG_SCALED})
+    target_link_libraries(test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_scaled ${ANYDSL_RUNTIME_LIBRARIES})
+    add_test("test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_scaled" test_fir2d_vect_nobh_flat_mask_pl_aie_pingpong_scaled)
+
+
+
     anydsl_runtime_wrap(TEST_FIR2D_VECT_NOBH_FLAT_MASK_STREAM
         FRONTEND "artic"
         CLANG_FLAGS ${CLANG_FLAGS}
