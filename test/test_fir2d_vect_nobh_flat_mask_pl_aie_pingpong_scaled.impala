@@ -383,23 +383,25 @@ fn main() -> () {
         }
 
         // CGRA-A  (upper part)
-        for _x, _y, _arr_flow in iteration(cgra, Img_dim{ width = img_dim.width, height = split + 1/* +1 halo*/ }, ch1_a_flow) {
-
+        let tile_rows_a = split + 1; // real rows
+        for _x, _y, _arr_flow in iteration(cgra, Img_dim{ width = img_dim.width, height = tile_rows_a }, ch1_a_flow) {
             let lbuff = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
             let lbuff_p = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
 
-            for _y in aie_pipeline(0, img_dim.height - (kernel_height - 1)) {
+            for _y in aie_pipeline(0, tile_rows_a - (kernel_height - 1)) {
 
                 let lbuff_addrs = @prepare_lbuff[DATA_TYPE](ch1_a, lbuff, lbuff_p, kernel_width, img_dim.width);
                 @process[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2_a);
             }
         }
+
         // CGRA-B  (lower part)
-        for _x, _y, _in in iteration(cgra, Img_dim{ width = img_dim.width, height = img_dim.height - split + 1/* +1 halo*/ }, ch1_b_flow) {
+        let tile_rows_b = img_dim.height - split + 1; // real rows
+        for _x, _y, _in in iteration(cgra, Img_dim{ width = img_dim.width, height = tile_rows_b }, ch1_b_flow) {
             let lbuff  = reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
             let lbuff_p= reserve_shared[DATA_TYPE](kernel_width * img_dim.width);
 
-            for _y in aie_pipeline(0, img_dim.height - (kernel_height - 1)) {
+            for _y in aie_pipeline(0, tile_rows_b - (kernel_height - 1)) {
                 let lbuff_addrs = @prepare_lbuff[DATA_TYPE](ch1_b, lbuff, lbuff_p, kernel_width, img_dim.width);
                 @process[DATA_TYPE](img_dim, lbuff_addrs, mask, &mut ch2_b);
             }
