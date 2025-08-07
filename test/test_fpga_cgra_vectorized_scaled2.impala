@@ -1,7 +1,7 @@
 // one fpga reader/writer data mover kernel to write/read on/from several channels is extreamly slow due to the port congestion
 type DATA_TYPE = f32;
 static v_size = 8;
-static tile_size = 2;
+static tile_size = 4;
 
 fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32| {
     generate(core,||{
@@ -78,9 +78,13 @@ fn @write(buf: Buffer, i: i32, v: [DATA_TYPE * 8]) -> () { bitcast[&mut addrspac
 
 static mut chan0_fpga_to_cgra: channel8[DATA_TYPE];
 static mut chan1_fpga_to_cgra: channel8[DATA_TYPE];
+static mut chan2_fpga_to_cgra: channel8[DATA_TYPE];
+static mut chan3_fpga_to_cgra: channel8[DATA_TYPE];
 
 static mut chan0_cgra_to_fpga: channel8[DATA_TYPE];
 static mut chan1_cgra_to_fpga: channel8[DATA_TYPE];
+static mut chan2_cgra_to_fpga: channel8[DATA_TYPE];
+static mut chan3_cgra_to_fpga: channel8[DATA_TYPE];
 
 #[export]
 fn main() -> i32 {
@@ -115,7 +119,7 @@ fn main() -> i32 {
     // read from fpga memory and write to channels (Scatter)
     for x, y, chunk_size in iteration(fpga, width, height) {
         //
-        let mut tile = bitcast[[[DATA_TYPE * 8] * 2]]([0; 16]);
+        let mut tile = bitcast[[[DATA_TYPE * 8] * 4]]([0; 32]);
 
         for t in unroll(0, tile_size) {
             let idx = y * (width / v_size) + (x + t * chunk_size);
@@ -125,6 +129,8 @@ fn main() -> i32 {
         // tile can be added as a layer of a nested-loop in the iteration function
         write_channel8(&mut chan0_fpga_to_cgra, tile(0) );
         write_channel8(&mut chan1_fpga_to_cgra, tile(1));
+        write_channel8(&mut chan2_fpga_to_cgra, tile(2));
+        write_channel8(&mut chan3_fpga_to_cgra, tile(3));
     }
 
 
@@ -142,13 +148,28 @@ fn main() -> i32 {
     }
 
 
+    // cgra tile2 processing the second chunk of data
+    for x, y, _chunk_size in iteration(cgra, width, height) {
+        let temp1 = read_channel8(&mut chan2_fpga_to_cgra);
+        write_channel8(&mut chan2_cgra_to_fpga, temp1);
+    }
+
+
+    // cgra tile3 processing the second chunk of data
+    for x, y, _chunk_size in iteration(cgra, width, height) {
+        let temp1 = read_channel8(&mut chan3_fpga_to_cgra);
+        write_channel8(&mut chan3_cgra_to_fpga, temp1);
+    }
+
     // read from channels and write to fpga memory (Gatther)
     for x, y, chunk_size in iteration(fpga, width, height) {
 
-        let mut tile = bitcast[[[DATA_TYPE * 8] * 2]]([0; 16]);
+        let mut tile = bitcast[[[DATA_TYPE * 8] * 4]]([0; 32]);
 
         tile(0) = read_channel8(&mut chan0_cgra_to_fpga);
         tile(1) = read_channel8(&mut chan1_cgra_to_fpga);
+        tile(2) = read_channel8(&mut chan2_cgra_to_fpga);
+        tile(3) = read_channel8(&mut chan3_cgra_to_fpga);
 
 
         for t in unroll(0, tile_size) {
