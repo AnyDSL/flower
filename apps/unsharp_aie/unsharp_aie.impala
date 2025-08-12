@@ -65,7 +65,7 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channels
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             let data = read(arr_fpga, idx);
             write_channel8[DATA_TYPE](&mut ch_in_to_blur, data);
@@ -74,14 +74,14 @@ fn main() -> () {
         }
 
         // blur
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch_in_to_blur, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen_and_mask);
         }
 
         // sharpen
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let in_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_sharpen);
             let blur_to_sharpen = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
@@ -107,7 +107,7 @@ fn main() -> () {
         }
 
         // Mask (Ratio)
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let in_to_mask      = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_mask);
             let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_sharpen_and_mask);
@@ -129,7 +129,7 @@ fn main() -> () {
         }
 
         // read from channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch_mask_to_out));
         }

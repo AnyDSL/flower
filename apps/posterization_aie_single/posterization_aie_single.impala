@@ -38,13 +38,13 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channel
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size ) + x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
         // read from the channel, process data on AI Engine (cgra) and write to a channel
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1);
             //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
 
@@ -59,7 +59,7 @@ fn main() -> () {
         }
 
         // read from the channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch2));
         }

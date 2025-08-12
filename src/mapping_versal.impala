@@ -19,6 +19,7 @@ struct FlatMask5[T] {
 }
 
 static v_size = 8;
+static tile_size = 1; // 1 means not tiled, we override this in applications
 static mut lbuf_cnt = 0;
 
 static ACC_SHIFT = 1:u32; // set for i32 8x8 sliding window
@@ -991,10 +992,67 @@ fn @iteration_(body: fn(i32, i32) -> ()) = @|core: Core, width: i32, height: i32
     }
 
 
+fn @iteration_core[T](body: fn(i32, i32, i32, &mut addrspace(3)[T]) -> ()) = @|core: Core, dim: Img_dim, mask:Mask[T] | {
+    let (width, height) = (dim.width, dim.height);
+    let (kernel_width, kernel_height) = (mask.size_x, mask.size_y);
+
+    let vectors_per_row = width / v_size;
+    //let total_vectors = vectors_per_row * height;
+    let chunk_size = vectors_per_row / tile_size;
+
+    match core {
+        Core::FPGA(_) => {
+
+            generate(core,||{
+                for y in range(0, height) {
+                    for x in pipeline(0, 0, chunk_size) {
+                        @body(x, y, chunk_size, 0 as &mut addrspace(3)[T]);
+                    }
+                }
+            });
+        },
+        Core::CGRA(config) => {
+            match config.interface {
+                Interface::stream => {
+                    generate(core,||{
+                        @body(1, 1, 0, 0 as &mut addrspace(3)[T]);
+                    });
+                },
+                _ => {
+// at the moment, we don't need to use Mem2D and Img abstractions for channels since a CGRA kernel doesn't directly access global memory
+// Also for a better abstraction, we need to add in & out parameters to the body and iteration functions so that we can abstract both the
+// accumulatio-to-vector-conversion and the channel write operation
+                    generate(core,||{
+                        if ((kernel_width == 0) && (kernel_height == 0)) {
+                            // pointwise operation
+                            for y in range(0, height) {
+                                for x in pipeline(0, 0, chunk_size) {
+                                    @body(x, y, 0, 0 as &mut addrspace(3)[T]);
+                                }
+                            }
+
+                        } else {
+                            // stencil operation
+                            // does not support tiling yet!
+                            cgra_set_sat();
+                            let lbuff_ = reserve_shared[T](kernel_width * width);
+                            for y in range(0, height - (kernel_height - 1)) {
+                                @body(0, 0, 0, lbuff_);
+                            }
+                        }
+                    });
+                }
+            }
+        },
+        _ => ()
+    }
+};
+
 
 
 // for FIR2D
-fn @iteration_core[T](body: fn(i32, i32, &mut addrspace(3)[T]) -> ()) = @|core: Core, dim: Img_dim, mask:Mask[T] | {
+// without chunck_size for tiling
+fn @iteration_core_[T](body: fn(i32, i32, &mut addrspace(3)[T]) -> ()) = @|core: Core, dim: Img_dim, mask:Mask[T] | {
     let (width, height) = (dim.width, dim.height);
     let (kernel_width, kernel_height) = (mask.size_x, mask.size_y);
 

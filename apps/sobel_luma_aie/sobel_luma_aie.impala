@@ -76,14 +76,14 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channel
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             let data = read(arr_fpga, idx);
             write_channel8[DATA_TYPE](&mut ch_in_to_luma, data);
         }
 
         // luma
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let in_to_luma = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_luma);
             //let in_to_luma = cgra_read_channel_v8[DATA_TYPE](ch_in_to_luma); /* stream interface */
@@ -118,19 +118,19 @@ fn main() -> () {
         }
 
         // gx
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_x) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_x) {
 
             let lbuff_addrs = @prepare_lbuff(ch_luma_to_g, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_x, &mut ch_gx_to_mag);
         }
         // gy
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_y) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_y) {
 
             let lbuff_addrs = @prepare_lbuff(ch_luma_to_g, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_y, &mut ch_gy_to_mag);
         }
         // magnitude
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
 
             let gx_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gx_to_mag);
@@ -155,7 +155,7 @@ fn main() -> () {
         }
 
         // read from channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch_mag_to_out));
         }

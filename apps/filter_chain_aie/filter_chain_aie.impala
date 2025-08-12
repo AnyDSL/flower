@@ -59,31 +59,31 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga memory and write to channel
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch1, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch2);
         }
 
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch2, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch3);
         }
 
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
+        for _x, y, _reserved ,lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch3, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut ch4);
         }
 
         // read from channel and write to fpga memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch4));
         }

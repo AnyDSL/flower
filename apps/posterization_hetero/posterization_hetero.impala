@@ -41,13 +41,13 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channel
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
         // read from the channel, process data on AI Engine (cgra) and write to a channel
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1);
             // Divide by 64 (>>6) to get levels 0–3
             let level = cgra_downshift[DATA_TYPE](data_slice, 6);
@@ -55,7 +55,7 @@ fn main() -> () {
         }
 
         // read from the channel, process data on FPGA and write to a channel
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             //let idx = y * (img_dim.width / v_size ) + x;
             let data = read_channel8[DATA_TYPE](&mut ch2);
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
@@ -69,7 +69,7 @@ fn main() -> () {
             write_channel8[DATA_TYPE](&mut ch3, value_vec);
         }
 
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
             let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3);
             let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
             let output = cgra_mul[DATA_TYPE](data_slice, coef);
@@ -78,7 +78,7 @@ fn main() -> () {
         }
 
         // read from the channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch4));
         }
