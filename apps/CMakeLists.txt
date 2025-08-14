@@ -81,6 +81,7 @@ set (UNSHARP_AIE_DIR              ${APPS_DIR}/unsharp_aie)
 set (UNSHARP_AIE_SPLIT_DIR        ${APPS_DIR}/unsharp_aie_split)
 set (POSTERIZATION_HETERO_DIR     ${APPS_DIR}/posterization_hetero)
 set (POSTERIZATION_AIE_DIR        ${APPS_DIR}/posterization_aie)
+set (POSTERIZATION_AIE_SPMD_DIR   ${APPS_DIR}/posterization_aie_spmd)
 set (POSTERIZATION_AIE_SINGLE_DIR ${APPS_DIR}/posterization_aie_single)
 set (POSTERIZATION_BURST_DIR      ${APPS_DIR}/posterization_burst)
 
@@ -127,6 +128,7 @@ set(UNSHARP_AIE_FILES             ${UNSHARP_AIE_DIR}/mask_${PIXEL_TYPE}.impala $
 set(UNSHARP_AIE_SPLIT_FILES       ${UNSHARP_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_SPLIT_DIR}/unsharp_aie_split.impala)
 set(POSTERIZATION_HETERO_FILES     ${POSTERIZATION_HETERO_DIR}/posterization_hetero.impala)
 set(POSTERIZATION_AIE_FILES        ${POSTERIZATION_AIE_DIR}/posterization_aie.impala)
+set(POSTERIZATION_AIE_SPMD_FILES   ${POSTERIZATION_AIE_SPMD_DIR}/posterization_aie_spmd.impala)
 set(POSTERIZATION_AIE_SINGLE_FILES ${POSTERIZATION_AIE_SINGLE_DIR}/posterization_aie_single.impala)
 set(POSTERIZATION_BURST_FILES      ${POSTERIZATION_BURST_DIR}/posterization_burst.impala)
 
@@ -578,6 +580,18 @@ anydsl_runtime_wrap(POSTERIZATION_AIE_PROGRAM
 add_executable(posterization_aie ${POSTERIZATION_AIE_PROGRAM})
 target_link_libraries(posterization_aie ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("posterization_aie" posterization_aie)
+
+
+anydsl_runtime_wrap(POSTERIZATION_AIE_SPMD_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_AIE_SPMD_FILES})
+add_executable(posterization_aie_spmd ${POSTERIZATION_AIE_SPMD_PROGRAM})
+target_link_libraries(posterization_aie_spmd ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_aie_spmd" posterization_aie_spmd)
+
 
 anydsl_runtime_wrap(POSTERIZATION_AIE_SINGLE_PROGRAM
     FRONTEND "artic"
