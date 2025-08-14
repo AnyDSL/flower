@@ -70,6 +70,7 @@ set (FILTER_CHAIN_AIE_DIR         ${APPS_DIR}/filter_chain_aie)
 set (BOX_FILTER_AIE_DIR           ${APPS_DIR}/box_filter_aie)
 set (JACOBI_AIE_DIR               ${APPS_DIR}/jacobi_aie)
 set (SQUARE_AIE_DIR               ${APPS_DIR}/square_aie)
+set (SQUARE_AIE_SPMD_DIR          ${APPS_DIR}/square_aie_spmd)
 set (SOBEL_AIE_DIR                ${APPS_DIR}/sobel_aie)
 set (SOBEL_LUMA_AIE_DIR           ${APPS_DIR}/sobel_luma_aie)
 set (HARRIS_CORNER_AIE_DIR        ${APPS_DIR}/harris_corner_aie)
@@ -116,6 +117,7 @@ set(FILTER_CHAIN_AIE_FILES    ${FILTER_CHAIN_AIE_DIR}/mask_${PIXEL_TYPE}.impala 
 set(BOX_FILTER_AIE_FILES      ${BOX_FILTER_AIE_DIR}/mask.impala ${BOX_FILTER_AIE_DIR}/box_filter_aie.impala)
 set(JACOBI_AIE_FILES          ${JACOBI_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${JACOBI_AIE_DIR}/jacobi_aie.impala)
 set(SQUARE_AIE_FILES          ${SQUARE_AIE_DIR}/square_aie.impala)
+set(SQUARE_AIE_SPMD_FILES     ${SQUARE_AIE_SPMD_DIR}/square_aie_spmd.impala)
 set(SOBEL_AIE_FILES           ${SOBEL_AIE_DIR}/mask_i32.impala ${SOBEL_AIE_DIR}/sobel_aie.impala)
 set(HARRIS_CORNER_AIE_FILES   ${HARRIS_CORNER_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_AIE_DIR}/harris_corner_aie.impala)
 set(HARRIS_CORNER_AIE_SPLIT_FILES ${HARRIS_CORNER_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${HARRIS_CORNER_AIE_SPLIT_DIR}/harris_corner_aie_split.impala)
@@ -454,15 +456,15 @@ target_link_libraries(square_aie ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("square_aie" square_aie)
 
 
-anydsl_runtime_wrap(SQUARE_AIE_PARALLEL_PROGRAM
+anydsl_runtime_wrap(SQUARE_AIE_SPMD_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
-    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_AIE_PARALLEL_FILES})
-add_executable(square_aie_parallel ${SQUARE_AIE_PARALLEL_PROGRAM})
-target_link_libraries(square_aie_parallel ${ANYDSL_RUNTIME_LIBRARIES})
-add_test("square_aie" square_aie_parallel)
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${SQUARE_AIE_SPMD_FILES})
+add_executable(square_aie_spmd ${SQUARE_AIE_SPMD_PROGRAM})
+target_link_libraries(square_aie_spmd ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("square_aie" square_aie_spmd)
 
 
 anydsl_runtime_wrap(SOBEL_AIE_PROGRAM

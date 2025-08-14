@@ -19,7 +19,6 @@ struct FlatMask5[T] {
 }
 
 static v_size = 8;
-static tile_size = 1; // 1 means not tiled, we override this in applications
 static mut lbuf_cnt = 0;
 
 static ACC_SHIFT = 1:u32; // set for i32 8x8 sliding window
@@ -998,7 +997,7 @@ fn @iteration_core[T](body: fn(i32, i32, i32, &mut addrspace(3)[T]) -> ()) = @|c
 
     let vectors_per_row = width / v_size;
     //let total_vectors = vectors_per_row * height;
-    let chunk_size = vectors_per_row / tile_size;
+    let chunk_size = vectors_per_row / aie_tile_size;
 
     match core {
         Core::FPGA(_) => {

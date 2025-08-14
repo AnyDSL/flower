@@ -2,9 +2,10 @@ fn @accelerator(dev: i32) -> Accelerator { hls_accelerator(dev) }
 
 static device_id = 0;
 static math = hls_intrinsics;
-static hls_math = hls_intrinsics;
-static cgra_math = cgra_intrinsics;
+static pl_math = hls_intrinsics;
+static aie_math = cgra_intrinsics;
 static vector_length = 1;
+static aie_tile_size = 1; // 1 means no tiling
 
 enum Core {
     CPU(i32),
@@ -17,7 +18,7 @@ struct Config {
     runtime_ratio: f32 = 1,
     location: (i32, i32) = (-1, -1),
     vector_size: i32 = vector_length,
-    interface: Interface = Interface::stream
+    interface: Interface = Interface::stream,
 }
 
 

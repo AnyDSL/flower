@@ -1,0 +1,219 @@
+// Naive version: no mem access optimization, no border handling
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+// This app works only with aie_tile_size = 8, set in backend_hls
+
+static mut chan0_pl_to_aie: channel8[DATA_TYPE];
+static mut chan1_pl_to_aie: channel8[DATA_TYPE];
+static mut chan2_pl_to_aie: channel8[DATA_TYPE];
+static mut chan3_pl_to_aie: channel8[DATA_TYPE];
+static mut chan4_pl_to_aie: channel8[DATA_TYPE];
+static mut chan5_pl_to_aie: channel8[DATA_TYPE];
+static mut chan6_pl_to_aie: channel8[DATA_TYPE];
+static mut chan7_pl_to_aie: channel8[DATA_TYPE];
+
+static mut chan0_aie_to_pl: channel8[DATA_TYPE];
+static mut chan1_aie_to_pl: channel8[DATA_TYPE];
+static mut chan2_aie_to_pl: channel8[DATA_TYPE];
+static mut chan3_aie_to_pl: channel8[DATA_TYPE];
+static mut chan4_aie_to_pl: channel8[DATA_TYPE];
+static mut chan5_aie_to_pl: channel8[DATA_TYPE];
+static mut chan6_aie_to_pl: channel8[DATA_TYPE];
+static mut chan7_aie_to_pl: channel8[DATA_TYPE];
+
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+    let mask = null_mask();
+    let kernel_width = mask.size_x;
+    let kernel_height = mask.size_y;
+
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let pl = Core::FPGA(core_config.device);
+    let aie = Core::CGRA(core_config);
+    let pl_math = get_core_intrinsics(pl);
+    let aie_math = get_core_intrinsics(aie);
+
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to pl
+        copy(arr, arr_pl);
+
+        // read from pl global memory and write to a channel
+        for x, y, chunk_size, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, mask) {
+            // tile is set according to the aie_tile_size = 8
+            let mut tile = bitcast[[[DATA_TYPE * 8] * 8]]([0; 64]);
+
+            for t in range(0, aie_tile_size) {
+                let idx = y * (img_dim.width / v_size) + (x + t * chunk_size);
+                tile(t) = read(arr_pl, idx);            // DRAM -> on-chip
+            }
+
+            // tile can be added as a layer of a nested-loop in the iteration function
+            write_channel8[DATA_TYPE](&mut chan0_pl_to_aie, tile(0));
+            write_channel8[DATA_TYPE](&mut chan1_pl_to_aie, tile(1));
+            write_channel8[DATA_TYPE](&mut chan2_pl_to_aie, tile(2));
+            write_channel8[DATA_TYPE](&mut chan3_pl_to_aie, tile(3));
+            write_channel8[DATA_TYPE](&mut chan4_pl_to_aie, tile(4));
+            write_channel8[DATA_TYPE](&mut chan5_pl_to_aie, tile(5));
+            write_channel8[DATA_TYPE](&mut chan6_pl_to_aie, tile(6));
+            write_channel8[DATA_TYPE](&mut chan7_pl_to_aie, tile(7));
+        }
+
+        // tile 0 rocessing the first chunk of data on AI Engine
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            // we need an out in the body lambda, it makes the code cleaner for the future abstractions
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan0_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan0_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan0_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan0_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 1 rocessing the second chunk of data on AI Engine
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan1_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan1_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan1_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan1_aie_to_pl , res_vector); /* stream interface */
+        }
+
+      // tile 2
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan2_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan2_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan2_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan2_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 3
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan3_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan3_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan3_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan3_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 4
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan4_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan4_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan4_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan4_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 5
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan5_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan5_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan5_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan5_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 6
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan6_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan6_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan6_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan6_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // tile 7
+        for _x, _y, _chunk_size, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](chan7_pl_to_aie);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](chan7_pl_to_aie); /* stream interface */
+
+            let data_squared = cgra_mul[DATA_TYPE](data_slice, data_slice);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, data_squared, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut chan7_aie_to_pl , res_vector);
+            //cgra_write_channel_v8(&mut chan7_aie_to_pl , res_vector); /* stream interface */
+        }
+
+        // read from channels and write to pl memory (Gatther)
+       for x, y, chunk_size, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, mask) {
+
+           let mut tile = bitcast[[[DATA_TYPE * 8] * 8]]([0; 64]);
+
+           tile(0) = read_channel8[DATA_TYPE](&mut chan0_aie_to_pl);
+           tile(1) = read_channel8[DATA_TYPE](&mut chan1_aie_to_pl);
+           tile(2) = read_channel8[DATA_TYPE](&mut chan2_aie_to_pl);
+           tile(3) = read_channel8[DATA_TYPE](&mut chan3_aie_to_pl);
+           tile(4) = read_channel8[DATA_TYPE](&mut chan4_aie_to_pl);
+           tile(5) = read_channel8[DATA_TYPE](&mut chan5_aie_to_pl);
+           tile(6) = read_channel8[DATA_TYPE](&mut chan6_aie_to_pl);
+           tile(7) = read_channel8[DATA_TYPE](&mut chan7_aie_to_pl);
+
+
+            for t in range(0, aie_tile_size) {
+                let idx = y * (img_dim.width / v_size) + (x + t * chunk_size);
+                write(out_pl, idx, tile(t));            // on-chip -> DRAM (local mem to global mem)
+            }
+
+        }
+
+        sync_device(pl);
+        // copy back from pl gmem to host
+        copy(out_pl, out);
+
+    }
+
+
+    fn reference() -> i32 {
+        let mut error = 0;
+        for i in range(0, img_dim.width * img_dim.height) {
+            let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+            let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+            let expected = arr_ptr(i) * arr_ptr(i);
+            if out_ptr(i) != expected {
+                error += 1;
+            }
+        }
+        error
+    }
+
+    let result = reference();
+
+    release(out_pl);
+    release(arr_pl);
+    release(arr);
+    release(out);
+    print_i32(result);
+    print_string("Executed!\n");
+}
+
