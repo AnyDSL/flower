@@ -1,0 +1,431 @@
+// Naive version: no mem access optimization, no border handling
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+
+// pl to aie
+static mut ch1_1 : channel8[i32];
+static mut ch2_1 : channel8[i32];
+static mut ch3_1 : channel8[i32];
+static mut ch4_1 : channel8[i32];
+
+// aie to aie
+static mut ch1_2 : channel8[i32];
+static mut ch2_2 : channel8[i32];
+static mut ch3_2 : channel8[i32];
+static mut ch4_2 : channel8[i32];
+
+// aie to aie
+static mut ch1_3 : channel8[i32];
+static mut ch2_3 : channel8[i32];
+static mut ch3_3 : channel8[i32];
+static mut ch4_3 : channel8[i32];
+
+// aie to aie
+static mut ch1_4 : channel8[i32];
+static mut ch2_4 : channel8[i32];
+static mut ch3_4 : channel8[i32];
+static mut ch4_4 : channel8[i32];
+
+// aie to aie
+static mut ch1_5 : channel8[i32];
+static mut ch2_5 : channel8[i32];
+static mut ch3_5 : channel8[i32];
+static mut ch4_5 : channel8[i32];
+
+// aie to aie
+static mut ch1_6 : channel8[i32];
+static mut ch2_6 : channel8[i32];
+static mut ch3_6 : channel8[i32];
+static mut ch4_6 : channel8[i32];
+
+// aie to aie
+static mut ch1_7 : channel8[i32];
+static mut ch2_7 : channel8[i32];
+static mut ch3_7 : channel8[i32];
+static mut ch4_7 : channel8[i32];
+
+// aie to pl
+static mut ch1_8 : channel8[i32];
+static mut ch2_8 : channel8[i32];
+static mut ch3_8 : channel8[i32];
+static mut ch4_8 : channel8[i32];
+
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+    let null_mask = null_mask();
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let pl = Core::FPGA(core_config.device);
+    let aie = Core::CGRA(core_config);
+    let pl_math = get_core_intrinsics(pl);
+    let aie_math = get_core_intrinsics(aie);
+
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    let max_level = 3;
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to pl
+        copy(arr, arr_pl);
+
+        // read from pl global memory and write to a channel
+        for x, y, chunk_size, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, null_mask) {
+            // tile is set according to the aie_tile_size = 8
+            let mut tile = bitcast[[[DATA_TYPE * 8] * 8]]([0; 64]);
+
+            for t in range(0, aie_tile_size) {
+                let idx = y * (img_dim.width / v_size) + (x + t * chunk_size);
+                tile(t) = read(arr_pl, idx);            // DRAM -> on-chip
+            }
+
+            // tile can be added as a layer of a nested-loop in the iteration function
+            write_channel8[DATA_TYPE](&mut ch1_1, tile(0));
+            write_channel8[DATA_TYPE](&mut ch1_2, tile(1));
+            write_channel8[DATA_TYPE](&mut ch1_3, tile(2));
+            write_channel8[DATA_TYPE](&mut ch1_4, tile(3));
+            write_channel8[DATA_TYPE](&mut ch1_5, tile(4));
+            write_channel8[DATA_TYPE](&mut ch1_6, tile(5));
+            write_channel8[DATA_TYPE](&mut ch1_7, tile(6));
+            write_channel8[DATA_TYPE](&mut ch1_8, tile(7));
+        }
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_1);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_1, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_1);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_1, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_1);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_1, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_2);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_2, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_2);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_2, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_2);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_2, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_3);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_3, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_3);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_3, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_3);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_3, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_4);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_4, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_4);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_4, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_4);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_4, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+
+
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_5);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_5, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_5);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_5, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_5);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_5, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_6);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_6, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_6);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_6, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_6);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_6, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_7);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_7, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_7);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_7, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_7);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_7, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+        // read from the channel, process data on AI Engine (cgra) and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1_8);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch1); /* stream interface */
+
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+
+            cgra_window_write_channel_v8(&mut ch2_8, level);
+            //cgra_write_channel_v8(&mut ch2, level); /* stream interface */
+        }
+
+        // read from the channel, process data on pl and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2_8);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch2); /* stream interface */
+            let value = aie_math.min(data_slice, max_level);
+            cgra_window_write_channel_v8(&mut ch3_8, value);
+            //cgra_write_channel_v8(&mut ch3, value); /* stream interface */
+
+        }
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch3_8);
+            //let data_slice = cgra_read_channel_v8[DATA_TYPE](ch3); /* stream interface */
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4_8, res_vector);
+            //cgra_write_channel_v8(&mut ch4, res_vector); /* stream interface */
+        }
+
+        // read from channels and write to pl memory (Gatther)
+       for x, y, chunk_size, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, null_mask) {
+
+           let mut tile = bitcast[[[DATA_TYPE * 8] * 8]]([0; 64]);
+
+           tile(0) = read_channel8[DATA_TYPE](&mut ch4_1);
+           tile(1) = read_channel8[DATA_TYPE](&mut ch4_2);
+           tile(2) = read_channel8[DATA_TYPE](&mut ch4_3);
+           tile(3) = read_channel8[DATA_TYPE](&mut ch4_4);
+           tile(4) = read_channel8[DATA_TYPE](&mut ch4_5);
+           tile(5) = read_channel8[DATA_TYPE](&mut ch4_6);
+           tile(6) = read_channel8[DATA_TYPE](&mut ch4_7);
+           tile(7) = read_channel8[DATA_TYPE](&mut ch4_8);
+
+
+            for t in range(0, aie_tile_size) {
+                let idx = y * (img_dim.width / v_size) + (x + t * chunk_size);
+                write(out_pl, idx, tile(t));            // on-chip -> DRAM (local mem to global mem)
+            }
+
+        }
+
+        sync_device(pl);
+        // copy back from fpga gmem to host
+        copy(out_pl, out);
+
+    }
+
+
+    fn reference() -> i32 {
+        let mut error = 0;
+        for i in range(0, img_dim.width * img_dim.height) {
+            let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+            let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+            let expected = arr_ptr(i) * arr_ptr(i);
+            if out_ptr(i) != expected {
+                error += 1;
+            }
+        }
+        error
+    }
+
+    let result = reference();
+
+    release(out_pl);
+    release(arr_pl);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}
+
