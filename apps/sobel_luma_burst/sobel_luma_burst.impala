@@ -13,6 +13,8 @@ fn init_data[T](arr: Img[T]) -> () {
 static mut mm_to_str_buf : pipe[pixel_t];
 static mut str_to_mm_buf : pipe[pixel_t];
 static mut luma_c        : pipe[pixel_t];
+static mut luma_c1       : pipe[pixel_t];
+static mut luma_c2       : pipe[pixel_t];
 static mut dx_c          : pipe[pixel_t];
 static mut dy_c          : pipe[pixel_t];
 
@@ -58,13 +60,16 @@ fn main() -> i32 {
             let pix_luma = ((r * 66 + g * 129 + b * 25 + 128) >> 8) + 16;
             out.write(x, y, pix_luma);
         }
+
+        let (luma_1, luma_2) = split_image(math, luma, &mut luma_c1, &mut luma_c2);
+
         // sobel: dx
-        for math, x, y, out, arr, mask in iteration[pixel_t](math, dx, luma, mask_x, lower, upper) {
+        for math, x, y, out, arr, mask in iteration[pixel_t](math, dx, luma_1, mask_x, lower, upper) {
             let pix_dx = apply_stencil(x, y, arr, mask);
             out.write(x, y, pix_dx);
         }
         // sobel: dy
-        for math, x, y, out, arr, mask in iteration[pixel_t](math, dy, luma, mask_y, lower, upper) {
+        for math, x, y, out, arr, mask in iteration[pixel_t](math, dy, luma_2, mask_y, lower, upper) {
             let pix_dy = apply_stencil(x, y, arr, mask);
             out.write(x, y, pix_dy);
         }
