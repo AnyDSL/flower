@@ -83,7 +83,7 @@ set (POSTERIZATION_HETERO_DIR     ${APPS_DIR}/posterization_hetero)
 set (POSTERIZATION_AIE_DIR        ${APPS_DIR}/posterization_aie)
 set (POSTERIZATION_AIE_SPMD_DIR   ${APPS_DIR}/posterization_aie_spmd)
 set (POSTERIZATION_AIE_SINGLE_DIR ${APPS_DIR}/posterization_aie_single)
-set (POSTERIZATION_BURST_DIR      ${APPS_DIR}/posterization_burst)
+set (POSTERIZATION_BURST_MOSAIC_DIR ${APPS_DIR}/posterization_burst_mosaic)
 
 
 set(BILATERAL_FILES           ${BILATERAL_DIR}/mask_f32.impala ${BILATERAL_DIR}/bilateral.impala)
@@ -130,7 +130,7 @@ set(POSTERIZATION_HETERO_FILES     ${POSTERIZATION_HETERO_DIR}/posterization_het
 set(POSTERIZATION_AIE_FILES        ${POSTERIZATION_AIE_DIR}/posterization_aie.impala)
 set(POSTERIZATION_AIE_SPMD_FILES   ${POSTERIZATION_AIE_SPMD_DIR}/posterization_aie_spmd.impala)
 set(POSTERIZATION_AIE_SINGLE_FILES ${POSTERIZATION_AIE_SINGLE_DIR}/posterization_aie_single.impala)
-set(POSTERIZATION_BURST_FILES      ${POSTERIZATION_BURST_DIR}/posterization_burst.impala)
+set(POSTERIZATION_BURST_MOSAIC_FILES ${POSTERIZATION_BURST_MOSAIC_DIR}/posterization_burst_mosaic.impala)
 
 # for optional config files
 set(APPS_CONFIG_FILES "")
@@ -374,15 +374,15 @@ target_link_libraries(harris_corner_burst ${ANYDSL_RUNTIME_LIBRARIES})
 set_target_properties(harris_corner_burst PROPERTIES COMPILE_FLAGS -DSTINCILLA_DATA_TYPE=${STINCILLA_DATA_TYPE})
 set_target_properties(harris_corner_burst PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
-anydsl_runtime_wrap(POSTERIZATION_BURST_PROGRAM
+anydsl_runtime_wrap(POSTERIZATION_BURST_MOSAIC_PROGRAM
     FRONTEND "artic"
     CLANG_FLAGS ${CLANG_FLAGS}
     ARTIC_FLAGS ${ARTIC_FLAGS}
     HLS_FLAGS ${HLS_FLAGS}
-    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_BURST_FILES})
-add_executable(posterization_burst ${POSTERIZATION_BURST_PROGRAM})
-target_link_libraries(posterization_burst ${ANYDSL_RUNTIME_LIBRARIES})
-add_test("posterization_burst" posterization_burst)
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${POSTERIZATION_BURST_MOSAIC_FILES})
+add_executable(posterization_burst_mosaic ${POSTERIZATION_BURST_MOSAIC_PROGRAM})
+target_link_libraries(posterization_burst_mosaic ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("posterization_burst_mosaic" posterization_burst_mosaic)
 
 
 if(IS_VERSAL)
