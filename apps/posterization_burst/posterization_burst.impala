@@ -39,12 +39,12 @@ fn main() -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channel
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
         }
 
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let data_slice = read_channel8[DATA_TYPE](&mut ch1);
 
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
@@ -58,7 +58,7 @@ fn main() -> () {
             write_channel8(&mut ch2, value_vec);
         }
 
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
 
             let data = read_channel8[DATA_TYPE](&mut ch2);
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
@@ -72,7 +72,7 @@ fn main() -> () {
             write_channel8[DATA_TYPE](&mut ch3, value_vec);
         }
 
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
 
             let data = read_channel8[DATA_TYPE](&mut ch3);
             let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
@@ -88,7 +88,7 @@ fn main() -> () {
         }
 
         // read from the channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size)+ x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch4));
         }
