@@ -1,0 +1,87 @@
+
+static mut ch1_buf : pipe[pixel_t];
+static mut ch2_buf : pipe[pixel_t];
+static mut ch3_buf : pipe[pixel_t];
+static mut ch4_buf : pipe[pixel_t];
+
+#[export]
+fn main() -> i32 {
+
+    let width  = 1024;
+    let height = 1024;
+
+    // function declarations
+    let iteration_point = iteration_point[pixel_t];
+    let get_acc = get_acc[pixel_t];
+
+    let arr    = create_host_img[pixel_t](width, height);
+    let out    = create_host_img[pixel_t](width, height);
+
+    let ch1 = create_virtual_img[pixel_t](width, height, &mut ch1_buf);
+    let ch2 = create_virtual_img[pixel_t](width, height, &mut ch2_buf);
+    let ch3 = create_virtual_img[pixel_t](width, height, &mut ch3_buf);
+    let ch4 = create_virtual_img[pixel_t](width, height, &mut ch4_buf);
+
+    init_rand(bitcast[&mut[pixel_t]](arr.buf.data), arr.stride, out.height);
+    init_zero(bitcast[&mut[pixel_t]](out.buf.data), out.stride, out.height);
+
+    let max_level = 3;
+
+    for benchmark_host(num_host_iter) {
+
+        for math, x, y, out, pin in iteration_point(math, ch1, arr) {
+            out.write(x, y, pin);
+        }
+
+
+        for math, x, y, out, pin in iteration_point(math, ch2, ch1) {
+
+            let val = pin >> 6;
+            out.write(x, y, val);
+        }
+
+        for math, x, y, out, pin in iteration_point(math, ch3, ch2) {
+
+            let val = min(pin, max_level);
+            out.write(x, y, val);
+        }
+
+        for math, x, y, out, pin in iteration_point(math, ch4, ch3) {
+
+            let val = pin * 8;
+            out.write(x, y, val);
+        }
+
+
+        for math, x, y, out, pin in iteration_point(math, out, ch4) {
+            out.write(x, y, pin);
+        }
+
+    }
+    print_total_timing();
+
+    fn reference() -> i32 {
+        let ref     = create_host_img[pixel_t](width, height);
+        let arr_acc = get_acc(arr, |idx, val| { bitcast[&mut[pixel_t]](arr.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](arr.buf.data)(idx));
+        let out_acc = get_acc(out, |idx, val| { bitcast[&mut[pixel_t]](out.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](out.buf.data)(idx));
+        let ref_acc = get_acc(ref, |idx, val| { bitcast[&mut[pixel_t]](ref.buf.data)(idx) = val }, |idx| bitcast[&[pixel_t]](ref.buf.data)(idx));
+        let prop    = get_RoI(0, 0, height, width);
+
+        for y in range(0, out.height) {
+            for x in range(0, out.width) {
+                let mut ref = arr_acc.read(x, y);
+                let stage1 = ref >> 6;
+                let stage2 = min(stage1, max_level);
+                let stage3 = stage2 * 8;
+                ref_acc.write(x, y, stage3);
+            }
+        }
+        check(arr_acc, out_acc, ref_acc, prop)
+    }
+
+    let result = reference();
+    release(arr.buf);
+    release(out.buf);
+    result
+}
+
