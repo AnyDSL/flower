@@ -79,6 +79,7 @@ set (SHI_THOMASI_AIE_DIR          ${APPS_DIR}/shi_thomasi_aie)
 set (SHI_THOMASI_AIE_SPLIT_DIR    ${APPS_DIR}/shi_thomasi_aie_split)
 set (UNSHARP_AIE_DIR              ${APPS_DIR}/unsharp_aie)
 set (UNSHARP_AIE_SPLIT_DIR        ${APPS_DIR}/unsharp_aie_split)
+set (UNSHARP_AIE_SPLIT_FUSED_DIR  ${APPS_DIR}/unsharp_aie_split_fused)
 set (POSTERIZATION_HETERO_DIR     ${APPS_DIR}/posterization_hetero)
 set (POSTERIZATION_AIE_DIR        ${APPS_DIR}/posterization_aie)
 set (POSTERIZATION_AIE_SPMD_DIR   ${APPS_DIR}/posterization_aie_spmd)
@@ -127,6 +128,7 @@ set(SHI_THOMASI_AIE_FILES         ${SHI_THOMASI_AIE_DIR}/mask_${PIXEL_TYPE}.impa
 set(SHI_THOMASI_AIE_SPLIT_FILES   ${SHI_THOMASI_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${SHI_THOMASI_AIE_SPLIT_DIR}/shi_thomasi_aie_split.impala)
 set(UNSHARP_AIE_FILES             ${UNSHARP_AIE_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_DIR}/unsharp_aie.impala)
 set(UNSHARP_AIE_SPLIT_FILES       ${UNSHARP_AIE_SPLIT_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_SPLIT_DIR}/unsharp_aie_split.impala)
+set(UNSHARP_AIE_SPLIT_FUSED_FILES ${UNSHARP_AIE_SPLIT_FUSED_DIR}/mask_${PIXEL_TYPE}.impala ${UNSHARP_AIE_SPLIT_FUSED_DIR}/unsharp_aie_split_fused.impala)
 set(POSTERIZATION_HETERO_FILES     ${POSTERIZATION_HETERO_DIR}/posterization_hetero.impala)
 set(POSTERIZATION_AIE_FILES        ${POSTERIZATION_AIE_DIR}/posterization_aie.impala)
 set(POSTERIZATION_AIE_SPMD_FILES   ${POSTERIZATION_AIE_SPMD_DIR}/posterization_aie_spmd.impala)
@@ -572,6 +574,18 @@ anydsl_runtime_wrap(UNSHARP_AIE_SPLIT_PROGRAM
 add_executable(unsharp_aie_split ${UNSHARP_AIE_SPLIT_PROGRAM})
 target_link_libraries(unsharp_aie_split ${ANYDSL_RUNTIME_LIBRARIES})
 add_test("unsharp_aie_split" unsharp_aie_split)
+
+
+anydsl_runtime_wrap(UNSHARP_AIE_SPLIT_FUSED_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${UNSHARP_AIE_SPLIT_FUSED_FILES})
+add_executable(unsharp_aie_split_fused ${UNSHARP_AIE_SPLIT_FUSED_PROGRAM})
+target_link_libraries(unsharp_aie_split_fused ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("unsharp_aie_split_fused" unsharp_aie_split_fused)
+
 
 
 anydsl_runtime_wrap(POSTERIZATION_HETERO_PROGRAM

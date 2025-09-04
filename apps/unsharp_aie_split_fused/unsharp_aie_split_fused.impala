@@ -3,9 +3,7 @@
 static mut ch_in_to_blur               : channel8[pixel_t];
 static mut ch_in_to_sharpen            : channel8[pixel_t];
 static mut ch_in_to_mask            : channel8[pixel_t];
-//static mut ch_blur_to_sharpen_and_mask : channel8[pixel_t];
 static mut ch_blur_to_sharpen          : channel8[pixel_t];
-static mut ch_blur_to_mask             : channel8[pixel_t];
 static mut ch_sharpen_to_mask          : channel8[pixel_t];
 static mut ch_mask_to_out              : channel8[pixel_t];
 
@@ -59,8 +57,6 @@ fn main() -> () {
     //let process = process3[DATA_TYPE];
     let process = process3_flat[DATA_TYPE];
     //let process = process3_flat_window[DATA_TYPE];
-    //let process_split2 = process3_flat_window_split2[DATA_TYPE];
-    let process_split2 = process3_flat_split2[DATA_TYPE];
     //let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
     let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
@@ -74,14 +70,15 @@ fn main() -> () {
             let data = read(arr_fpga, idx);
             write_channel8[DATA_TYPE](&mut ch_in_to_blur, data);
             write_channel8[DATA_TYPE](&mut ch_in_to_sharpen, data);
-            write_channel8[DATA_TYPE](&mut ch_in_to_mask, data);
+            //write_channel8[DATA_TYPE](&mut ch_in_to_mask, data);
         }
 
         // blur
         for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask) {
 
             let lbuff_addrs = @prepare_lbuff(ch_in_to_blur, lbuff, kernel_width, img_dim);
-            process_split2(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen, &mut ch_blur_to_mask);
+            //process_split2(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen, &mut ch_blur_to_mask);
+            process(img_dim, lbuff_addrs, flat_mask, &mut ch_blur_to_sharpen);
         }
 
         // sharpen
@@ -104,29 +101,16 @@ fn main() -> () {
             let neg_weight = cgra_neg[DATA_TYPE](weight);
             acc = cgra_mac[DATA_TYPE](acc, blur_to_sharpen, neg_weight);
 
-            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, acc, ACC_SHIFT);
-
-            //cgra_window_write_channel_v8(&mut ch_sharpen_to_mask, res_vector);
-            cgra_write_channel_v8(&mut ch_sharpen_to_mask, res_vector); /* stream interface */
-        }
-
-        // Mask (Ratio)
-        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
-
-            //let in_to_mask      = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_mask);
-            //let blur_to_mask    = cgra_window_read_channel_v8[DATA_TYPE](ch_blur_to_mask);
-            //let sharpen_to_mask = cgra_window_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask);
-            let in_to_mask      = cgra_read_channel_v8[DATA_TYPE](ch_in_to_mask); /* stream interface */
-            let blur_to_mask    = cgra_read_channel_v8[DATA_TYPE](ch_blur_to_mask); /* stream interface */
-            let sharpen_to_mask = cgra_read_channel_v8[DATA_TYPE](ch_sharpen_to_mask); /* stream interface */
-
-            let diff = cgra_sub[DATA_TYPE](in_to_mask, blur_to_mask);
+            let sharpen_to_mask = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, acc, ACC_SHIFT);
+                
+            // fused Mask (Ratio) stage
+            // in_to_mask and blur_to_mask are the same as in_to_sharpen and blur_to_sharpen
+            let diff = cgra_sub[DATA_TYPE](in_to_sharpen, blur_to_sharpen);
             let absolute_value = cgra_abs(diff);
             let threshold = cgra_broadcast[DATA_TYPE](v_size, threshold);
 
-            //let pix_mask_out = if (absolute_value < threshold) {in_to_mask} else {sharpen_to_mask};
             let mask = cgra_lt[DATA_TYPE](absolute_value, threshold);
-            let pix_mask_out = cgra_select[DATA_TYPE](sharpen_to_mask, in_to_mask, mask);
+            let pix_mask_out = cgra_select[DATA_TYPE](sharpen_to_mask, in_to_sharpen, mask);
 
             //cgra_window_write_channel_v8(&mut ch_mask_to_out, pix_mask_out);
             cgra_write_channel_v8(&mut ch_mask_to_out, pix_mask_out); /* stream interface */
