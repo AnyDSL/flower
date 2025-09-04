@@ -1,8 +1,8 @@
 // AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
 
 static mut ch_in_to_luma : channel8[pixel_t];
-//static mut ch_luma_to_gx : channel8[pixel_t];
-//static mut ch_luma_to_gy : channel8[pixel_t];
+static mut ch_luma_to_gx : channel8[pixel_t];
+static mut ch_luma_to_gy : channel8[pixel_t];
 static mut ch_luma_to_g : channel8[pixel_t];
 static mut ch_gx_to_mag  : channel8[pixel_t];
 static mut ch_gy_to_mag  : channel8[pixel_t];
@@ -37,7 +37,7 @@ fn main() -> () {
                     };
 
     let auto_locate = (-1, -1);
-    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::stream};
 
     let fpga = Core::FPGA(core_config.device);
     let cgra = Core::CGRA(core_config);
@@ -66,10 +66,10 @@ fn main() -> () {
     }
 
     //let process = process3[DATA_TYPE];
-    //let process = process3_flat[DATA_TYPE];
-    let process = process3_flat_window[DATA_TYPE];
-    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
-    //let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
+    let process = process3_flat[DATA_TYPE];
+    //let process = process3_flat_window[DATA_TYPE];
+    //let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    let prepare_lbuff = prepare_lbuff3[DATA_TYPE];
 
     for benchmark_host(num_host_iter) {
         // copy from host to fpga
@@ -85,8 +85,8 @@ fn main() -> () {
         // luma
         for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
-            let in_to_luma = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_luma);
-            //let in_to_luma = cgra_read_channel_v8[DATA_TYPE](ch_in_to_luma); /* stream interface */
+            //let in_to_luma = cgra_window_read_channel_v8[DATA_TYPE](ch_in_to_luma);
+            let in_to_luma = cgra_read_channel_v8[DATA_TYPE](ch_in_to_luma); /* stream interface */
 
             let byte_mask = cgra_broadcast[DATA_TYPE](v_size, 0xff);
 
@@ -96,47 +96,58 @@ fn main() -> () {
             let r = cgra_bit_and[DATA_TYPE](cgra_downshift[DATA_TYPE](in_to_luma, 16), byte_mask);
 
             // luma calculation for RGB to YUV conversion
-            // note that cgra_mul returns an accumulator,i64,because of that we need to use cgra_add[i64]
-            let pix_luma_temp = cgra_add[i64](
-                cgra_add[i64](cgra_mul[DATA_TYPE](r, 66), cgra_mul[DATA_TYPE](g, 129)),
-                cgra_add[i64](cgra_mul[DATA_TYPE](b, 25), cgra_broadcast[i64](v_size, 128))// adding 128 for rounding
+            // note that cgra_mul returns an accumulator,i64
+
+            let r_part = cgra_mul[DATA_TYPE](r, 66);
+            let r_part_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, r_part, ACC_SHIFT);
+            let g_part = cgra_mul[DATA_TYPE](g, 129);
+            let g_part_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, g_part, ACC_SHIFT);
+            let b_part = cgra_mul[DATA_TYPE](b, 25);
+            let b_part_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, b_part, ACC_SHIFT);
+            let bias_vec   = cgra_broadcast[DATA_TYPE](v_size, 128); // adding 128 for rounding
+            //let bias_acc = cgra_from_vector[DATA_TYPE](bias, 0);
+            
+            // Vitis 2022.2 does not support addition of two accum type via aie::add, therefore we have to cast to vector
+            // in recent Vitis versions this problem has been resolved and add API can get two accum types.
+
+            let pix_luma_temp = cgra_add[DATA_TYPE](
+                cgra_add[DATA_TYPE](r_part_vec, g_part_vec),
+                cgra_add[DATA_TYPE](b_part_vec, bias_vec)
             );
 
             // division by 256 (shift 8 bits) scales down the result to fit within an 8-bit range (0-255)
             // adding 16 to the result adjusts the result to fit within the standard luma range of 16 to 235.
-            let pix_luma = cgra_add[i64](cgra_downshift[i64](pix_luma_temp, 8), cgra_broadcast[i64](v_size, 16));
-
-            // casting accumulator to vector
-            let pix_luma_vec = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, pix_luma, ACC_SHIFT);
+            let pix_luma_vec = cgra_add[DATA_TYPE](cgra_downshift[DATA_TYPE](pix_luma_temp, 8), cgra_broadcast[DATA_TYPE](v_size, 16));
 
             // sending to the other stages
             //cgra_window_write_channel_v8(&mut ch_luma_to_gx, pix_luma_vec);
             //cgra_window_write_channel_v8(&mut ch_luma_to_gy, pix_luma_vec);
 
-            cgra_window_write_channel_v8(&mut ch_luma_to_g, pix_luma_vec);
-            //cgra_write_channel_v8(&mut ch_luma_to_g, pix_luma_vec); /* stream interface */
+            cgra_write_channel_v8(&mut ch_luma_to_gx, pix_luma_vec); /* stream interface */
+            cgra_write_channel_v8(&mut ch_luma_to_gy, pix_luma_vec); /* stream interface */
+
         }
 
         // gx
         for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_x) {
 
-            let lbuff_addrs = @prepare_lbuff(ch_luma_to_g, lbuff, kernel_width, img_dim);
+            let lbuff_addrs = @prepare_lbuff(ch_luma_to_gx, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_x, &mut ch_gx_to_mag);
         }
         // gy
         for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mask_y) {
 
-            let lbuff_addrs = @prepare_lbuff(ch_luma_to_g, lbuff, kernel_width, img_dim);
+            let lbuff_addrs = @prepare_lbuff(ch_luma_to_gy, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask_y, &mut ch_gy_to_mag);
         }
         // magnitude
         for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
 
-            let gx_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gx_to_mag);
-            let gy_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gy_to_mag);
-            //let gx_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gx_to_mag); /* stream interface */
-            //let gy_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gy_to_mag); /* stream interface */
+            //let gx_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gx_to_mag);
+            //let gy_to_mag = cgra_window_read_channel_v8[DATA_TYPE](ch_gy_to_mag);
+            let gx_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gx_to_mag); /* stream interface */
+            let gy_to_mag = cgra_read_channel_v8[DATA_TYPE](ch_gy_to_mag); /* stream interface */
 
             let gx_mag = cgra_abs(gx_to_mag);
             let gy_mag = cgra_abs(gy_to_mag);
@@ -150,8 +161,8 @@ fn main() -> () {
             let res = cgra_mul[DATA_TYPE](val, 255);
             let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, res, ACC_SHIFT);
 
-            cgra_window_write_channel_v8(&mut ch_mag_to_out, res_vector);
-            //cgra_write_channel_v8(&mut ch_mag_to_out, res_vector); /* stream interface */
+            //cgra_window_write_channel_v8(&mut ch_mag_to_out, res_vector);
+            cgra_write_channel_v8(&mut ch_mag_to_out, res_vector); /* stream interface */
         }
 
         // read from channel and write to fpga global memory
