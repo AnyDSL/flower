@@ -10,7 +10,6 @@ fn main() -> () {
     let mask = get_mask3(laplace_mask3);
     let kernel_width = mask.size_x;
     let kernel_height = mask.size_y;
-
     let flat_mask = FlatMask3[DATA_TYPE] {
                         row0 = laplace_coeffs_row0,
                         row1 = laplace_coeffs_row1,

@@ -85,6 +85,7 @@ set (POSTERIZATION_AIE_SPMD_DIR   ${APPS_DIR}/posterization_aie_spmd)
 set (POSTERIZATION_AIE_SINGLE_DIR ${APPS_DIR}/posterization_aie_single)
 set (POSTERIZATION_BURST_MOSAIC_DIR ${APPS_DIR}/posterization_burst_mosaic)
 set (POSTERIZATION_BURST_DIR      ${APPS_DIR}/posterization_burst)
+set (PAPER_EXAMPLE_DIR            ${APPS_DIR}/paper_example)
 
 
 set(BILATERAL_FILES           ${BILATERAL_DIR}/mask_f32.impala ${BILATERAL_DIR}/bilateral.impala)
@@ -133,6 +134,7 @@ set(POSTERIZATION_AIE_SPMD_FILES   ${POSTERIZATION_AIE_SPMD_DIR}/posterization_a
 set(POSTERIZATION_AIE_SINGLE_FILES ${POSTERIZATION_AIE_SINGLE_DIR}/posterization_aie_single.impala)
 set(POSTERIZATION_BURST_FILES      ${POSTERIZATION_BURST_DIR}/posterization_burst.impala)
 set(POSTERIZATION_BURST_MOSAIC_FILES ${POSTERIZATION_BURST_MOSAIC_DIR}/posterization_burst_mosaic.impala)
+set(PAPER_EXAMPLE_FILES              ${PAPER_EXAMPLE_DIR}/mask.impala ${PAPER_EXAMPLE_DIR}/paper_example.impala)
 
 # for optional config files
 set(APPS_CONFIG_FILES "")
@@ -618,3 +620,12 @@ add_test("posterization_aie_single" posterization_aie_single)
 
 endif()
 
+anydsl_runtime_wrap(PAPER_EXAMPLE_PROGRAM
+    FRONTEND "artic"
+    CLANG_FLAGS ${CLANG_FLAGS}
+    ARTIC_FLAGS ${ARTIC_FLAGS}
+    HLS_FLAGS ${HLS_FLAGS}
+    FILES ${APPS_CONFIG_FILES} ${COMMON_FILES} ${PAPER_EXAMPLE_FILES})
+add_executable(paper_example ${PAPER_EXAMPLE_PROGRAM})
+target_link_libraries(paper_example ${ANYDSL_RUNTIME_LIBRARIES})
+add_test("paper_example" paper_example)
