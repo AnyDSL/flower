@@ -1,11 +1,12 @@
 // AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
 
-static mut ch1 : channel8[i32];
-static mut ch2 : channel8[i32];
-static mut ch3 : channel8[i32];
-static mut ch4 : channel8[i32];
-static mut ch5 : channel8[i32];
-static mut ch6 : channel8[i32];
+type T = i32;
+static mut ch1 : channel8[T];
+static mut ch2 : channel8[T];
+static mut ch3 : channel8[T];
+static mut ch4 : channel8[T];
+static mut ch5 : channel8[T];
+static mut ch6 : channel8[T];
 
 #[export]
 fn main() -> () {
@@ -13,7 +14,7 @@ fn main() -> () {
     let img_dim = Img_dim { width = 1024, height = 1024 };
     let null_mask = null_mask();
     let mask = get_mask3(laplace_mask3);
-    let flat_mask = FlatMask3[DATA_TYPE] {
+    let flat_mask = FlatMask3[T] {
                     row0 = laplace_coeffs_row0,
                     row1 = laplace_coeffs_row1,
                     row2 = laplace_coeffs_row2,
@@ -31,46 +32,46 @@ fn main() -> () {
     let pl_math = get_core_intrinsics(pl);
     let aie_math = get_core_intrinsics(aie);
 
-    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
-    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
-    let arr_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
-    let out_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
-    let process = process3_flat_window[DATA_TYPE];
-    let prepare_lbuff = prepare_lbuff3_window[DATA_TYPE];
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[T]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[T]());
+    let arr_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[T]());
+    let out_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[T]());
+    let process = process3_flat_window[T];
+    let prepare_lbuff = prepare_lbuff3_window[T];
 
     // initialize host buffers
     for i in range(0, img_dim.width * img_dim.height) {
-        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
-        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
-        arr_ptr(i) = i as DATA_TYPE;
-        out_ptr(i) = 0:DATA_TYPE;
+        let arr_ptr = bitcast[&mut[T]](arr.data);
+        let out_ptr = bitcast[&mut[T]](out.data);
+        arr_ptr(i) = i as T;
+        out_ptr(i) = 0:T;
     }
 
     let max_level = 3;
 
-    fn @DataMover_i(x: i32, y: i32, input: Buffer, output: &mut channel8[DATA_TYPE]) -> () {
+    fn @DataMover_i(x: i32, y: i32, input: Buffer, output: &mut channel8[T]) -> () {
             let idx = y * (img_dim.width / v_size) + x;
-            write_channel8[DATA_TYPE](output, read(input, idx));
+            write_channel8[T](output, read(input, idx));
     };
 
 
-    fn @fun1(_x: i32, _y: i32, input: &mut channel8[DATA_TYPE], output1: &mut channel8[DATA_TYPE], output2: &mut channel8[DATA_TYPE]) -> () {
-            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](input);
+    fn @fun1(_x: i32, _y: i32, input: &mut channel8[T], output1: &mut channel8[T], output2: &mut channel8[T]) -> () {
+            let data_slice = cgra_window_read_channel_v8[T](input);
             // Divide by 64 (>>6) to get levels 0–3
-            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+            let level = cgra_downshift[T](data_slice, 6);
             cgra_window_write_channel_v8(output1, level);
             cgra_window_write_channel_v8(output2, level);
     };
 
-    fn @fun2 (_x: i32, _y: i32, lbuff: &mut addrspace(3)[DATA_TYPE], input: &mut channel8[DATA_TYPE], output: &mut channel8[DATA_TYPE]) -> () {
+    fn @fun2 (_x: i32, _y: i32, lbuff: &mut addrspace(3)[T], input: &mut channel8[T], output: &mut channel8[T]) -> () {
 
             let lbuff_addrs = @prepare_lbuff(input, lbuff, kernel_width, img_dim);
              @process(img_dim, lbuff_addrs, flat_mask, output);
     };
 
-    fn @fun3(_x: i32, _y: i32, input:&mut channel8[DATA_TYPE], output:&mut channel8[DATA_TYPE]) -> () {
-           let data = read_channel8[DATA_TYPE](input);
-           let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
+    fn @fun3(_x: i32, _y: i32, input:&mut channel8[T], output:&mut channel8[T]) -> () {
+           let data = read_channel8[T](input);
+           let mut value_vec = bitcast[[T * 8]]([0; 8]); // v_size = 8
            let mut value = 0;
 
            for v in unroll(0, v_size - 1) {
@@ -78,22 +79,22 @@ fn main() -> () {
                value_vec(v) = value;
            }
 
-            write_channel8[DATA_TYPE](output, data);
+            write_channel8[T](output, data);
     };
 
-    fn fun4(_x: i32, _y: i32, input1: &mut channel8[DATA_TYPE], input2: &mut channel8[DATA_TYPE], output: &mut channel8[DATA_TYPE]) -> () {
-            let data_slice1 = cgra_window_read_channel_v8[DATA_TYPE](input1);
-            let data_slice2 = cgra_window_read_channel_v8[DATA_TYPE](input2);
+    fn fun4(_x: i32, _y: i32, input1: &mut channel8[T], input2: &mut channel8[T], output: &mut channel8[T]) -> () {
+            let data_slice1 = cgra_window_read_channel_v8[T](input1);
+            let data_slice2 = cgra_window_read_channel_v8[T](input2);
             // Divide by 64 (>>6) to get levels 0–3
-            let level1 = cgra_downshift[DATA_TYPE](data_slice1, 6);
-            let level2 = cgra_downshift[DATA_TYPE](data_slice2, 6);
-            let added = cgra_add[DATA_TYPE](level1, level2);
+            let level1 = cgra_downshift[T](data_slice1, 6);
+            let level2 = cgra_downshift[T](data_slice2, 6);
+            let added = cgra_add[T](level1, level2);
             cgra_window_write_channel_v8(output, added);
     };
 
-    fn @DataMover_o(x: i32, y: i32, input: &mut channel8[DATA_TYPE], output: Buffer) {
+    fn @DataMover_o(x: i32, y: i32, input: &mut channel8[T], output: Buffer) {
         let idx = y * (img_dim.width / v_size) + x;
-        write(output, idx, read_channel8[DATA_TYPE](input));
+        write(output, idx, read_channel8[T](input));
     }
 
 
@@ -102,31 +103,31 @@ fn main() -> () {
         copy(arr, arr_pl);
 
         // A datamover read from pl global memory and write to a channel
-        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, null_mask) {
+        for x, y , _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
             DataMover_i(x, y, arr_pl, ch1);
         }
 
         // An AIE core read from the channel, process data (pixel-wise) and write to 2 channels. On AIE and PL
-        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[T](aie, img_dim, null_mask) {
             fun1(x, y, ch1, ch2, ch3);
         }
         // An AIE core read from the channel, process data on AI Engine (stencil operation) and write to a channel
-        for x, y, _reserved, lbuff in iteration_core[DATA_TYPE](aie, img_dim, mask) {
+        for x, y, _reserved, lbuff in iteration_core[T](aie, img_dim, mask) {
             fun2(x, y, lbuff, ch2, ch4);
         }
 
         // HW on PL read from the channel, process data and write to a channel
-        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
             fun3(x, y, ch3, ch5);
         }
 
         // An AIE core read from AIE and PL channels , process data on AIE (pixel-wise operation) and write them on a  channel
-        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](aie, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[T](aie, img_dim, null_mask) {
             fun4(x, y, ch4, ch5, ch6);
         }
 
         // read from the channel and write to pl global memory
-        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](pl, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
             DataMover_o(x, y, ch6, out_pl);
         }
 
@@ -140,8 +141,8 @@ fn main() -> () {
     fn reference() -> i32 {
         let mut error = 0;
         for i in range(0, img_dim.width * img_dim.height) {
-            let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
-            let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+            let arr_ptr = bitcast[&mut[T]](arr.data);
+            let out_ptr = bitcast[&mut[T]](out.data);
             let expected = arr_ptr(i) * arr_ptr(i);
             if out_ptr(i) != expected {
                 error += 1;
