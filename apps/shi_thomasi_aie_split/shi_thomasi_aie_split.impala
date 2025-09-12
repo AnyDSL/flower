@@ -100,7 +100,7 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         copy(arr, arr_fpga);
 
         // read from fpga global memory and write to a channels
-        for x, y , _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             let data = read(arr_fpga, idx);
             write_channel8[DATA_TYPE](&mut in_c0, data);
@@ -108,14 +108,14 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         }
 
         // dx
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
 
             let lbuff_addrs = @prepare_lbuff(in_c0, lbuff, kernel_width, img_dim);
             process_split(img_dim, lbuff_addrs, flat_mask_x, &mut dx_c0,  &mut dx_c1);
         }
 
         // dy
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mdx) {
 
             let lbuff_addrs = @prepare_lbuff(in_c1, lbuff, kernel_width, img_dim);
             process_split(img_dim, lbuff_addrs, flat_mask_y, &mut dy_c0, &mut dy_c1);
@@ -125,7 +125,7 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         // split after a stencil operation
 
         // dxx
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c0);
             //let dx_vec = cgra_read_channel_v8[DATA_TYPE](dx_c0); /* stream interface */
@@ -138,7 +138,7 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         }
 
         // dyy
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c0);
             //let dy_vec = cgra_read_channel_v8[DATA_TYPE](dy_c0); /* stream interface */
@@ -151,7 +151,7 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         }
 
         // dxy
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let dx_vec = cgra_window_read_channel_v8[DATA_TYPE](dx_c1);
             let dy_vec = cgra_window_read_channel_v8[DATA_TYPE](dy_c1);
@@ -169,28 +169,28 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         let mg = get_mask3(gauss_mask3);
 
         // gxx
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
             let lbuff_addrs = @prepare_lbuff(dxx_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gxx_c);
         }
 
         // gyy
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
             let lbuff_addrs = @prepare_lbuff(dyy_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gyy_c);
         }
 
         // gxy
-        for _x, y, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
+        for _x, y, _reserved, lbuff in iteration_core[DATA_TYPE](cgra, img_dim, mg) {
 
             let lbuff_addrs = @prepare_lbuff(dxy_c, lbuff, kernel_width, img_dim);
             process(img_dim, lbuff_addrs, flat_mask, &mut gxy_c);
         }
 
         // compute score for shi-thomasi
-        for _x, _y, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
 
             let gxx = cgra_window_read_channel_v8[DATA_TYPE](gxx_c);
             let gyy = cgra_window_read_channel_v8[DATA_TYPE](gyy_c);
@@ -209,7 +209,7 @@ fn shi_thomasi_aie_split(img_data: &[pixel_t], out_data: &mut[pixel_t]) -> () {
         }
 
         // read from channel and write to fpga global memory
-        for x, y, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
             let idx = y * (img_dim.width / v_size) + x;
             write(out_fpga, idx, read_channel8[DATA_TYPE](&mut str_to_mm_buf));
         }
