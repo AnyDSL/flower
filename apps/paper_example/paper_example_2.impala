@@ -1,0 +1,119 @@
+// Naive version: no mem access optimization, no border handling
+// AIE window interface is 256 bits, so for int32 type we can use maximum 8 lanes. 8x32b = 256b
+
+static mut ch1 : channel8[i32];
+static mut ch2 : channel8[i32];
+static mut ch3 : channel8[i32];
+static mut ch4 : channel8[i32];
+
+
+#[export]
+fn main() -> () {
+
+    let img_dim = Img_dim { width = 1024, height = 1024 };
+    let null_mask = null_mask();
+
+    let auto_locate = (-1, -1);
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+
+    let fpga = Core::FPGA(core_config.device);
+    let cgra = Core::CGRA(core_config);
+    let fpga_math = get_core_intrinsics(fpga);
+    let cgra_math = get_core_intrinsics(cgra);
+
+    let arr       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let arr_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+    let out_fpga = alloc_device(fpga, (img_dim.width * img_dim.height) as i64 * sizeof[DATA_TYPE]());
+
+    // initialize host buffers
+    for i in range(0, img_dim.width * img_dim.height) {
+        let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+        let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+        arr_ptr(i) = i as DATA_TYPE;
+        out_ptr(i) = 0:DATA_TYPE;
+    }
+
+    let max_level = 3;
+
+    for benchmark_host(num_host_iter) {
+        // copy from host to fpga
+        copy(arr, arr_fpga);
+
+        // read from fpga global memory and write to a channel
+        for x, y , _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * (img_dim.width / v_size) + x;
+            write_channel8[DATA_TYPE](&mut ch1, read(arr_fpga, idx));
+        }
+
+        // read from the channel, process data on AI Engine and write to 2 channels. On AIE and PL
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch1);
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[DATA_TYPE](data_slice, 6);
+            cgra_window_write_channel_v8(&mut ch2, level);
+            cgra_window_write_channel_v8(&mut ch3, level);
+        }
+
+
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](cgra, img_dim, null_mask) {
+            let data_slice = cgra_window_read_channel_v8[DATA_TYPE](ch2);
+            let coef = cgra_broadcast[DATA_TYPE](v_size, 85);
+            let output = cgra_mul[DATA_TYPE](data_slice, coef);
+            let res_vector = cgra_shift_round_saturate[DATA_TYPE, i64](v_size as u32, output, ACC_SHIFT);
+            cgra_window_write_channel_v8(&mut ch4, res_vector);
+        }
+
+        // read from the channel, process data on FPGA and write to a channel
+        for _x, _y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            //let idx = y * (img_dim.width / v_size ) + x;
+            let data = read_channel8[DATA_TYPE](&mut ch3);
+            //let mut value_vec = bitcast[[DATA_TYPE * 8]]([0; 8]); // v_size = 8
+            //let mut value = 0;
+
+           // for v in unroll(0, v_size - 1) {
+                //value = min(data(v), max_level);
+               // value_vec(v) = value;
+           // }
+
+            //write_channel8[DATA_TYPE](&mut ch4, value_vec);
+            write_channel8[DATA_TYPE](&mut ch4, data);
+        }
+
+
+        // read from the channel and write to fpga global memory
+        for x, y, _reserved, _lbuff in iteration_core[DATA_TYPE](fpga, img_dim, null_mask) {
+            let idx = y * (img_dim.width / v_size) + x;
+            write(out_fpga, idx, read_channel8[DATA_TYPE](&mut ch4));
+        }
+
+        sync_device(fpga);
+        // copy back from fpga gmem to host
+        copy(out_fpga, out);
+
+    }
+
+
+    fn reference() -> i32 {
+        let mut error = 0;
+        for i in range(0, img_dim.width * img_dim.height) {
+            let arr_ptr = bitcast[&mut[DATA_TYPE]](arr.data);
+            let out_ptr = bitcast[&mut[DATA_TYPE]](out.data);
+            let expected = arr_ptr(i) * arr_ptr(i);
+            if out_ptr(i) != expected {
+                error += 1;
+            }
+        }
+        error
+    }
+
+    let result = reference();
+
+    release(out_fpga);
+    release(arr_fpga);
+    release(arr);
+    release(out);
+
+    print_string("Executed!\n");
+}
+

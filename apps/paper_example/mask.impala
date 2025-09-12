@@ -1,0 +1,7 @@
+static laplace_mask3 = [[ 0 as pixel_t, 1 as pixel_t, 0 as pixel_t ],
+                       [  1 as pixel_t, -4 as pixel_t, 1 as pixel_t],
+                       [  0 as pixel_t, 1 as pixel_t, 0 as pixel_t]];
+
+static laplace_coeffs_row0 = [ 0 as pixel_t,  1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static laplace_coeffs_row1 = [ 1 as pixel_t, -4 as pixel_t, 1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
+static laplace_coeffs_row2 = [ 0 as pixel_t,  1 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t, 0 as pixel_t];
