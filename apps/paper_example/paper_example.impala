@@ -25,7 +25,7 @@ fn main() -> () {
     let kernel_height = mask.size_y;
 
     let auto_locate = (-1, -1);
-    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::window};
+    let core_config = Config{device = 0, runtime_ratio = 1, location = auto_locate, vector_size = v_size, interface = Interface::stream};
 
     let pl = Core::FPGA(core_config.device);
     let aie = Core::CGRA(core_config);
@@ -36,8 +36,10 @@ fn main() -> () {
     let out       = alloc_cpu((img_dim.width * img_dim.height) as i64 * sizeof[T]());
     let arr_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[T]());
     let out_pl = alloc_device(pl, (img_dim.width * img_dim.height) as i64 * sizeof[T]());
-    let process = process3_flat_window[T];
-    let prepare_lbuff = prepare_lbuff3_window[T];
+    //let process = process3_flat_window[T];
+    let process = process3_flat[T];
+    //let prepare_lbuff = prepare_lbuff3_window[T];
+    let prepare_lbuff = prepare_lbuff3[T];
 
     // initialize host buffers
     for i in range(0, img_dim.width * img_dim.height) {
@@ -59,8 +61,10 @@ fn main() -> () {
             let data_slice = cgra_window_read_channel_v8[T](input);
             // Divide by 64 (>>6) to get levels 0–3
             let level = cgra_downshift[T](data_slice, 6);
-            cgra_window_write_channel_v8(output1, level);
-            cgra_window_write_channel_v8(output2, level);
+            //cgra_window_write_channel_v8(output1, level);
+            //cgra_window_write_channel_v8(output2, level);
+            cgra_write_channel_v8(output1, level); //stream interface
+            cgra_write_channel_v8(output2, level); //stream interface
     };
 
     fn @fun2 (_x: i32, _y: i32, lbuff: &mut addrspace(3)[T], input: &mut channel8[T], output: &mut channel8[T]) -> () {
@@ -83,13 +87,16 @@ fn main() -> () {
     };
 
     fn fun4(_x: i32, _y: i32, input1: &mut channel8[T], input2: &mut channel8[T], output: &mut channel8[T]) -> () {
-            let data_slice1 = cgra_window_read_channel_v8[T](input1);
-            let data_slice2 = cgra_window_read_channel_v8[T](input2);
+            //let data_slice1 = cgra_window_read_channel_v8[T](input1);
+            //let data_slice2 = cgra_window_read_channel_v8[T](input2);
+            let data_slice1 = cgra_read_channel_v8[T](input1); //stream interface
+            let data_slice2 = cgra_read_channel_v8[T](input2); //stream interface
             // Divide by 64 (>>6) to get levels 0–3
             let level1 = cgra_downshift[T](data_slice1, 6);
             let level2 = cgra_downshift[T](data_slice2, 6);
             let added = cgra_add[T](level1, level2);
-            cgra_window_write_channel_v8(output, added);
+            //cgra_window_write_channel_v8(output, added);
+            cgra_write_channel_v8(output, added); //stream interface
     };
 
     fn @DataMover_o(x: i32, y: i32, input: &mut channel8[T], output: Buffer) {
