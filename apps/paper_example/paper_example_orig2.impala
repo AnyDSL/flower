@@ -7,7 +7,7 @@ static mut ch3 : channel8[T];
 static mut ch4 : channel8[T];
 static mut ch5 : channel8[T];
 static mut ch6 : channel8[T];
-static mut ch7 : channel8[T];
+//static mut ch7 : channel8[T];
 
 #[export]
 fn main() -> () {
@@ -52,28 +52,13 @@ fn main() -> () {
 
     let max_level = 3;
 
-    fn DataMover_i(x: i32, y: i32, input: Buffer, output: &mut channel8[T]) -> () {
+    fn @DataMover_i(x: i32, y: i32, input: Buffer, output: &mut channel8[T]) -> () {
             let idx = y * (img_dim.width / v_size) + x;
             write_channel8[T](output, read(input, idx));
     };
 
 
-    fn fun1(_x: i32, _y: i32, input:&mut channel8[T], output:&mut channel8[T] ) -> () {
-           let data = read_channel8[T](input);
-           let mut value_vec = bitcast[[T * 8]]([0; 8]); // v_size = 8
-           let mut value = 0;
-
-           for v in unroll(0, v_size - 1) {
-               value = min(data(v), max_level);
-               value_vec(v) = value;
-           }
-
-            write_channel8[T](output, value_vec);
-            //write_channel8[T](output2, data);
-    };
-
-
-    fn fun2(_x: i32, _y: i32, input: &mut channel8[T], output1: &mut channel8[T], output2: &mut channel8[T]) -> () {
+    fn @fun1(_x: i32, _y: i32, input: &mut channel8[T], output1: &mut channel8[T], output2: &mut channel8[T]) -> () {
             let data_slice = cgra_window_read_channel_v8[T](input);
             // Divide by 64 (>>6) to get levels 0–3
             let level1 = cgra_downshift[T](data_slice, 6);
@@ -84,15 +69,16 @@ fn main() -> () {
             cgra_write_channel_v8(output2, level2); //stream interface
     };
 
-
-    fn fun3 (_x: i32, _y: i32, lbuff: &mut addrspace(3)[T], input: &mut channel8[T], output: &mut channel8[T]) -> () {
-
-            let lbuff_addrs = @prepare_lbuff(input, lbuff, kernel_width, img_dim);
-             @process(img_dim, lbuff_addrs, flat_mask, output);
+    fn @fun2(_x: i32, _y: i32, input: &mut channel8[T], output: &mut channel8[T]) -> () {
+            let data_slice = cgra_window_read_channel_v8[T](input);
+            // Divide by 64 (>>6) to get levels 0–3
+            let level = cgra_downshift[T](data_slice, 6);
+            //cgra_window_write_channel_v8(output1, level);
+            //cgra_window_write_channel_v8(output2, level);
+            cgra_write_channel_v8(output, level); //stream interface
     };
 
-
-    fn fun4(_x: i32, _y: i32, input:&mut channel8[T], output:&mut channel8[T] ) -> () {
+    fn @fun3(_x: i32, _y: i32, input:&mut channel8[T], output:&mut channel8[T] ) -> () {
            let data = read_channel8[T](input);
            let mut value_vec = bitcast[[T * 8]]([0; 8]); // v_size = 8
            let mut value = 0;
@@ -106,7 +92,7 @@ fn main() -> () {
             //write_channel8[T](output2, data);
     };
 
-    fn fun5(_x: i32, _y: i32, input1: &mut channel8[T], input2: &mut channel8[T], output: &mut channel8[T]) -> () {
+    fn fun4(_x: i32, _y: i32, input1: &mut channel8[T], input2: &mut channel8[T], output: &mut channel8[T]) -> () {
             //let data_slice1 = cgra_window_read_channel_v8[T](input1);
             //let data_slice2 = cgra_window_read_channel_v8[T](input2);
             let data_slice1 = cgra_read_channel_v8[T](input1); //stream interface
@@ -120,8 +106,33 @@ fn main() -> () {
     };
 
 
+    fn @fun5(_x: i32, _y: i32, input:&mut channel8[T], output:&mut channel8[T] ) -> () {
+           let data = read_channel8[T](input);
+           let mut value_vec = bitcast[[T * 8]]([0; 8]); // v_size = 8
+           let mut value = 0;
 
-    fn DataMover_o(x: i32, y: i32, input: &mut channel8[T], output: Buffer) {
+           for v in unroll(0, v_size - 1) {
+               value = min(data(v), max_level);
+               value_vec(v) = value;
+           }
+
+            write_channel8[T](output, value_vec);
+            //write_channel8[T](output2, data);
+    };
+
+
+
+
+ //   fn @fun4 (_x: i32, _y: i32, lbuff: &mut addrspace(3)[T], input: &mut channel8[T], output: &mut channel8[T]) -> () {
+
+ //           let lbuff_addrs = @prepare_lbuff(input, lbuff, kernel_width, img_dim);
+ //            @process(img_dim, lbuff_addrs, flat_mask, output);
+ //   };
+
+
+
+
+    fn @DataMover_o(x: i32, y: i32, input: &mut channel8[T], output: Buffer) {
         let idx = y * (img_dim.width / v_size) + x;
         write(output, idx, read_channel8[T](input));
     }
@@ -136,35 +147,36 @@ fn main() -> () {
             @DataMover_i(x, y, arr_pl, ch1);
         }
 
-        // HW on PL read from the channel, process data and write to a channel
-        for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
-            fun1(x, y, ch1, ch2);
-        }
-
 
         // An AIE core read from the channel, process data (pixel-wise) and write to 2 channels. On AIE and PL
         for x, y, _reserved, _lbuff in iteration_core[T](aie, img_dim, null_mask) {
-            fun2(x, y, ch2, ch3, ch4);
-        }
-
-        // An AIE core read from the channel, process data on AI Engine (stencil operation) and write to a channel
-        for x, y, _reserved, lbuff in iteration_core[T](aie, img_dim, null_mask) {
-            fun3(x, y, lbuff, ch3, ch5);
+            @fun1(x, y, ch1, ch2, ch3);
         }
 
         // HW on PL read from the channel, process data and write to a channel
+        for x, y, _reserved, _lbuff in iteration_core[T](aie, img_dim, null_mask) {
+            @fun2(x, y, ch2, ch4);
+        }
+
+        // An AIE core read from the channel, process data on AI Engine (stencil operation) and write to a channel
         for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, mask) {
-            fun4(x, y, ch4, ch6);
+            @fun3(x, y, ch3, ch5);
         }
 
         // An AIE core read from the channel, process data on AI Engine (stencil operation) and write to a channel
         for x, y, _reserved, _lbuff in iteration_core[T](aie, img_dim, mask) {
-            fun5(x, y, ch5, ch6, ch7);
+            @fun4(x, y, ch4, ch5, ch6);
         }
+
+//        // An AIE core read from the channel, process data (pixel-wise) and write to 2 channels. On AIE and PL
+//        for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
+//            fun5(x, y, ch6, ch7);
+//        }
+
 
         // read from the channel and write to pl global memory
         for x, y, _reserved, _lbuff in iteration_core[T](pl, img_dim, null_mask) {
-            @DataMover_o(x, y, ch7, out_pl);
+            @DataMover_o(x, y, ch6, out_pl);
         }
 
         sync_device(pl);
