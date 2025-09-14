@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/posterization_aie.dir/link.d posterization_aie.o -o posterization_aie  -Wl,-rpath,/home/puya/Projects/anydsl/runtime/build/lib:/home/puya/Projects/anydsl/llvm_install/lib /home/puya/Projects/anydsl/runtime/build/lib/libruntime.so -Wl,-rpath-link,/home/puya/Projects/anydsl/llvm_install/lib

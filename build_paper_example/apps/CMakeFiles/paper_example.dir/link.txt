@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/paper_example.dir/link.d paper_example.o -o paper_example  -Wl,-rpath,/home/puya/Projects/anydsl/runtime/build/lib:/home/puya/Projects/anydsl/llvm_install/lib /home/puya/Projects/anydsl/runtime/build/lib/libruntime.so -Wl,-rpath-link,/home/puya/Projects/anydsl/llvm_install/lib
