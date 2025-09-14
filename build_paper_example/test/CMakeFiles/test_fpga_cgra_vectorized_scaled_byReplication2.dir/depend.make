@@ -1,0 +1,2 @@
+# Empty dependencies file for test_fpga_cgra_vectorized_scaled_byReplication2.
+# This may be replaced when dependencies are built.
